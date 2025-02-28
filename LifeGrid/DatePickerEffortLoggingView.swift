@@ -1,26 +1,39 @@
 //
-//  EffortLoggingView.swift
+//  DatePickerEffortLoggingView.swift
 //  LifeGrid
 //
-//  Created by shaqayeq Rad on 2/27/25.
+//  Created on 2/28/25.
 //
 
 import SwiftUI
 
-struct ImprovedEffortLoggingView: View {
+struct DatePickerEffortLoggingView: View {
     let sprint: Sprint
-    let date: Date
+    
+    @State private var selectedDate: Date
+    @State private var selectedGoalId: UUID?
+    @State private var hoursInput: String = ""
+    @State private var useTimeSelector = false
+    @State private var startTime: Date = Date()
+    @State private var endTime: Date = Date().addingTimeInterval(3600) // One hour later by default
+    @State private var notes: String = ""
     
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var sprintStore: SprintStore
     
-    @State private var selectedGoalId: UUID? = nil
-    @State private var hoursInput: String = ""
-    @State private var showingTimeSelector = false
-    @State private var startTime: Date = Date()
-    @State private var endTime: Date = Date().addingTimeInterval(3600) // One hour later by default
-    @State private var useTimeSelector = false
-    @State private var notes: String = ""
+    // Initialize with the current date by default, but allow passing a specific date
+    init(sprint: Sprint, initialDate: Date = Date()) {
+        self.sprint = sprint
+        _selectedDate = State(initialValue: initialDate)
+    }
+    
+    // Calculate valid date range for the sprint
+    private var dateRange: ClosedRange<Date> {
+        let calendar = Calendar.current
+        let startDate = calendar.startOfDay(for: sprint.startDate)
+        let endDate = calendar.startOfDay(for: sprint.endDate)
+        return startDate...endDate
+    }
     
     // Determine if effort can be saved
     private var canSave: Bool {
@@ -38,29 +51,27 @@ struct ImprovedEffortLoggingView: View {
         return Double(minutes) / 60.0
     }
     
-    // Get efforts logged today
-    private var todaysEfforts: [Effort] {
-        sprintStore.effortsForDate(date)
+    // Get efforts logged for the selected date
+    private var dayEfforts: [Effort] {
+        sprintStore.effortsForDate(selectedDate)
     }
     
     var body: some View {
         NavigationStack {
             Form {
-                // Date section (only shown if not logging for today)
-                if !Calendar.current.isDateInToday(date) {
-                    Section {
-                        HStack {
-                            Text("Date:")
-                            Spacer()
-                            Text(date, style: .date)
-                                .foregroundColor(.secondary)
-                        }
-                    } header: {
-                        Text("Logging For")
-                    }
+                // Date selection section
+                Section {
+                    DatePicker(
+                        "Date",
+                        selection: $selectedDate,
+                        in: dateRange,
+                        displayedComponents: .date
+                    )
+                } header: {
+                    Text("Select Date")
                 }
                 
-                // Goal selection
+                // Goal selection section
                 Section {
                     ForEach(sprint.goals) { goal in
                         Button {
@@ -71,7 +82,7 @@ struct ImprovedEffortLoggingView: View {
                                     Text(goal.title)
                                         .foregroundColor(.primary)
                                     
-                                    Text("Target: \(String(format: "%.1f", goal.targetHours)) hrs/day • Weight: \(Int(goal.weight * 100))%")
+                                    Text("Target: \(String(format: "%.1f", goal.targetHours)) hrs • Weight: \(Int(goal.weight * 100))%")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -124,17 +135,19 @@ struct ImprovedEffortLoggingView: View {
                 }
                 
                 // Today's logged efforts section
-                if !todaysEfforts.isEmpty {
+                if !dayEfforts.isEmpty {
                     Section {
-                        ForEach(todaysEfforts) { effort in
+                        ForEach(dayEfforts) { effort in
                             let goalTitle = getGoalTitle(for: effort.goalId)
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(goalTitle)
                                     
-                                    Text("Logged at \(effort.date, style: .time)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    if Calendar.current.isDateInToday(selectedDate) {
+                                        Text("Logged at \(effort.date, style: .time)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
                                 
                                 Spacer()
@@ -144,7 +157,11 @@ struct ImprovedEffortLoggingView: View {
                             }
                         }
                     } header: {
-                        Text("Already Logged Today")
+                        if Calendar.current.isDateInToday(selectedDate) {
+                            Text("Already Logged Today")
+                        } else {
+                            Text("Already Logged for \(selectedDate, style: .date)")
+                        }
                     }
                 }
                 
@@ -180,9 +197,10 @@ struct ImprovedEffortLoggingView: View {
         let hours = useTimeSelector ? hoursFromTimeSelection : (Double(hoursInput) ?? 0)
         guard hours > 0 else { return }
         
+        // Create a new effort
         let effort = Effort(
             goalId: goalId,
-            date: date,
+            date: selectedDate, // Use the selected date
             hours: hours
         )
         
@@ -202,7 +220,7 @@ struct ImprovedEffortLoggingView: View {
     }
 }
 
-struct ImprovedEffortLoggingView_Previews: PreviewProvider {
+struct DatePickerEffortLoggingView_Previews: PreviewProvider {
     static var previews: some View {
         let sampleSprint = Sprint(
             name: "Sample Sprint",
@@ -214,7 +232,7 @@ struct ImprovedEffortLoggingView_Previews: PreviewProvider {
             ]
         )
         
-        return ImprovedEffortLoggingView(sprint: sampleSprint, date: Date())
+        return DatePickerEffortLoggingView(sprint: sampleSprint)
             .environmentObject(SprintStore())
     }
 }

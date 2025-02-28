@@ -3,6 +3,7 @@
 //  LifeGrid
 //
 //  Created by shaqayeq Rad on 2/26/25.
+//  Updated with new components
 //
 
 import SwiftUI
@@ -19,9 +20,42 @@ struct LifeGridApp: App {
                     .environmentObject(userSettings)
                     .environmentObject(sprintStore)
             } else {
-                MainView()
-                    .environmentObject(userSettings)
-                    .environmentObject(sprintStore)
+                // Use TabView to provide navigation between different views
+                TabView {
+                    // Daily Grid View - shows sprints
+                    SprintGridMainView()
+                        .environmentObject(userSettings)
+                        .environmentObject(sprintStore)
+                        .tabItem {
+                            Label("Sprint View", systemImage: "chart.bar.fill")
+                        }
+                    
+                    // Life Grid View - shows full lifespan
+                    LifetimeGridView()
+                        .environmentObject(userSettings)
+                        .environmentObject(sprintStore)
+                        .tabItem {
+                            Label("Life Grid", systemImage: "calendar")
+                        }
+                    
+                    // Sprints Management
+                    NavigationStack {
+                        SprintsView()
+                            .environmentObject(sprintStore)
+                    }
+                    .tabItem {
+                        Label("Sprints", systemImage: "list.bullet")
+                    }
+                    
+                    // Settings
+                    NavigationStack {
+                        AccountView()
+                            .environmentObject(userSettings)
+                    }
+                    .tabItem {
+                        Label("Settings", systemImage: "gear")
+                    }
+                }
             }
         }
     }
