@@ -56,6 +56,45 @@ class SprintStore: ObservableObject {
         }
     }
     
+    
+    // Delete a sprint
+    func deleteSprint(_ sprint: Sprint) {
+        // First, delete all efforts associated with this sprint
+        efforts = efforts.filter { effort in
+            !isEffortInSprint(effort, sprint: sprint)
+        }
+        
+        // Then remove the sprint itself
+        if let index = sprints.firstIndex(where: { $0.id == sprint.id }) {
+            sprints.remove(at: index)
+        }
+    }
+
+    // Delete a specific effort
+    func deleteEffort(_ effort: Effort) {
+        if let index = efforts.firstIndex(where: { $0.id == effort.id }) {
+            efforts.remove(at: index)
+        }
+    }
+
+    // Edit a sprint
+    func updateSprint(_ updatedSprint: Sprint) {
+        if let index = sprints.firstIndex(where: { $0.id == updatedSprint.id }) {
+            sprints[index] = updatedSprint
+        }
+    }
+
+    // Check if an effort belongs to a specific sprint
+    private func isEffortInSprint(_ effort: Effort, sprint: Sprint) -> Bool {
+        let calendar = Calendar.current
+        let effortDate = calendar.startOfDay(for: effort.date)
+        let sprintStart = calendar.startOfDay(for: sprint.startDate)
+        let sprintEnd = calendar.startOfDay(for: sprint.endDate)
+        
+        return effortDate >= sprintStart && effortDate <= sprintEnd &&
+               sprint.goals.contains(where: { $0.id == effort.goalId })
+    }
+    
     // Get a sprint that contains a specific date
     func sprintForDate(_ date: Date) -> Sprint? {
         let calendar = Calendar.current

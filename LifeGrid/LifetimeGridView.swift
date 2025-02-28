@@ -121,70 +121,141 @@ struct LifetimeGridView: View {
     
     // Life overview statistics section
     private var lifeOverviewSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             Text("Life Overview")
                 .font(.headline)
             
-            HStack(spacing: 16) {
-                // Completed years stat
-                VStack {
-                    Text("\(userSettings.currentAge)")
-                        .font(.title)
-                        .fontWeight(.bold)
-                    Text("Years Lived")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.green.opacity(0.1))
-                .cornerRadius(10)
-                
-                // Years remaining stat
-                VStack {
-                    Text("\(userSettings.targetAge - userSettings.currentAge)")
-                        .font(.title)
-                        .fontWeight(.bold)
-                    Text("Years Remaining")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color.blue.opacity(0.1))
-                .cornerRadius(10)
-            }
+            // Get detailed life statistics
+            let lifeStats = LifeProgressCalculator.calculateLifeStats(
+                currentAge: userSettings.currentAge,
+                targetAge: userSettings.targetAge
+            )
             
-            // Life percentage bar
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Life Progress")
-                    .font(.subheadline)
-                
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        // Background bar
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 10)
-                            .cornerRadius(5)
-                        
-                        // Progress bar
-                        let percentage = lifePercentage
-                        Rectangle()
-                            .fill(LinearGradient(
-                                colors: [.green, .blue],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ))
-                            .frame(width: geometry.size.width * CGFloat(percentage), height: 10)
-                            .cornerRadius(5)
+            VStack(spacing: 12) {
+                // Progress bar
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Life Progress")
+                            .font(.subheadline)
+                        Spacer()
+                        Text(lifeStats.formattedPercentCompleted)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                     }
+                    
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // Background bar
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(height: 12)
+                                .cornerRadius(6)
+                            
+                            // Progress bar
+                            Rectangle()
+                                .fill(LinearGradient(
+                                    colors: [.green, .blue],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ))
+                                .frame(width: geometry.size.width * CGFloat(lifeStats.percentCompleted), height: 12)
+                                .cornerRadius(6)
+                        }
+                    }
+                    .frame(height: 12)
                 }
-                .frame(height: 10)
                 
-                Text("\(Int(lifePercentage * 100))% Complete")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                HStack(spacing: 16) {
+                    // Years stats
+                    VStack {
+                        Text("\(lifeStats.yearsLived)")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        Text("Years Lived")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(10)
+                    
+                    // Years remaining stat
+                    VStack {
+                        Text("\(lifeStats.yearsRemaining)")
+                            .font(.title)
+                            .fontWeight(.bold)
+                        Text("Years Remaining")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(10)
+                }
+                
+                // Week stats
+                HStack(spacing: 16) {
+                    // Weeks stats
+                    VStack {
+                        Text("\(lifeStats.weeksLived)")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Text("Weeks Lived")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                    
+                    // Weeks remaining stat
+                    VStack {
+                        Text("\(lifeStats.weeksRemaining)")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Text("Weeks Remaining")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
+                
+                // Days stats
+                HStack(spacing: 16) {
+                    // Days stats
+                    VStack {
+                        Text("\(lifeStats.daysLived)")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Text("Days Lived")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                    
+                    // Days remaining stat
+                    VStack {
+                        Text("\(lifeStats.daysRemaining)")
+                            .font(.headline)
+                            .fontWeight(.bold)
+                        Text("Days Remaining")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(10)
+                }
             }
         }
         .padding()
