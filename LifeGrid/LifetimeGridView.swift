@@ -106,10 +106,14 @@ struct LifetimeGridView: View {
                 // Regenerate data after logging effort
                 lifetimeStore.generateLifetimeData()
             }) {
-                if let date = selectedEffortDate,
-                   let sprint = getSprintForDay(date) {
-                    DatePickerEffortLoggingView(sprint: sprint, initialDate: date)
-                        .environmentObject(sprintStore)
+                Group {
+                    if let date = selectedEffortDate,
+                       let sprint = getSprintForDay(date) {
+                        DatePickerEffortLoggingView(sprint: sprint, initialDate: date)
+                            .environmentObject(sprintStore)
+                    } else {
+                        EmptyView()
+                    }
                 }
             }
         }
@@ -309,8 +313,10 @@ struct LifetimeGridView: View {
                         ForEach(["S", "M", "T", "W", "T", "F", "S"], id: \.self) { day in
                             Text(day)
                                 .font(.caption)
+                                .frame(width: 30)
                                 .foregroundColor(.secondary)
                         }
+
                         
                         // Calculate first weekday of the month for proper alignment
                         let firstDayOfMonth = monthData.days.first?.date ?? Date()
@@ -428,11 +434,18 @@ struct LifetimeGridView: View {
                 
                 // Log effort button (only if the day is part of a sprint)
                 if getSprintForDay(day.date) != nil {
-                    Button("Log Effort") {
-                        // Set the selected date and show the effort logging sheet
+                    Button(action: {
                         selectedEffortDate = day.date
                         showingEffortSheet = true
-                        zoomedDay = nil
+                        zoomedDay = nil  // Close the overlay
+                    }) {
+                        Text("Log Effort")
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                     }
                     .padding(.vertical, 10)
                     .padding(.horizontal, 20)

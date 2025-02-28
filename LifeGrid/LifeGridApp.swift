@@ -3,7 +3,6 @@
 //  LifeGrid
 //
 //  Created by shaqayeq Rad on 2/26/25.
-//  Updated with new components
 //
 
 import SwiftUI
@@ -51,6 +50,7 @@ struct LifeGridApp: App {
                     NavigationStack {
                         AccountView()
                             .environmentObject(userSettings)
+                            .environmentObject(sprintStore) // <-- Add this line
                     }
                     .tabItem {
                         Label("Settings", systemImage: "gear")

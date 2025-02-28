@@ -19,10 +19,11 @@ struct SprintsView: View {
                         .foregroundColor(.gray)
                 }
                 ForEach(sprintStore.sprints) { sprint in
-                    NavigationLink(sprint.name) {
-                        SprintDetailView(sprint: sprint)
+                    NavigationLink(destination: SprintDetailView(sprint: sprint).environmentObject(sprintStore)) {
+                        Text(sprint.name)
                     }
                 }
+                .navigationTitle("My Sprints")
             }
             .navigationTitle("My Sprints")
             .toolbar {

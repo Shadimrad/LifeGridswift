@@ -7,6 +7,8 @@
 import SwiftUI
 struct AccountView: View {
     @EnvironmentObject var userSettings: UserSettings
+    @EnvironmentObject var sprintStore: SprintStore
+
     
     var body: some View {
         Form {
@@ -16,7 +18,8 @@ struct AccountView: View {
                         in: 1...70)
             }
             Section(header: Text("Sprints")) {
-                NavigationLink("Manage Sprints", destination: SprintsView())
+                NavigationLink("Manage Sprints", destination: SprintsView().environmentObject(sprintStore))
+
             }
         }
         .navigationTitle("Account Settings")

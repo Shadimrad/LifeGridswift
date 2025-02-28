@@ -71,6 +71,7 @@ struct SprintDetailView: View {
                 // Recent efforts section
                 effortsListView
                 
+        
                 // Log effort button
                 Button(action: {
                     selectedDate = Date() // Default to today
@@ -87,6 +88,11 @@ struct SprintDetailView: View {
                     .cornerRadius(10)
                 }
                 .padding(.horizontal)
+                .sheet(isPresented: $showingEffortSheet) {
+                    DatePickerEffortLoggingView(sprint: sprint, initialDate: selectedDate)
+                        .environmentObject(sprintStore)
+                }
+
             }
             .padding()
         }
@@ -133,7 +139,7 @@ struct SprintDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Day of week headers
             HStack {
-                ForEach(["S", "M", "T", "W", "T", "F", "S"], id: \.self) { day in
+                ForEach(Array(zip(["S", "M", "T", "W", "T", "F", "S"].indices, ["S", "M", "T", "W", "T", "F", "S"])), id: \.0) { index, day in
                     Text(day)
                         .font(.caption)
                         .frame(width: 30)

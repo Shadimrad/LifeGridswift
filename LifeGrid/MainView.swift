@@ -13,6 +13,7 @@ struct SprintGridMainView: View {
     
     @State private var zoomedDay: DayData? = nil
     @State private var selectedSprint: Sprint? = nil
+    @State private var showingSprintDetail = false  // Add this line
     
     @Namespace private var animationNamespace
     
@@ -61,6 +62,12 @@ struct SprintGridMainView: View {
             .toolbar {
                 NavigationLink("Account") {
                     AccountView()
+                }
+            }
+            .sheet(isPresented: $showingSprintDetail) {
+                if let sprint = selectedSprint {
+                    SprintDetailView(sprint: sprint)
+                        .environmentObject(sprintStore)
                 }
             }
             .onAppear {
@@ -167,9 +174,11 @@ struct SprintGridMainView: View {
                 Spacer()
                 
                 // Log effort button
+                // Log effort button
                 Button(action: {
-                    // Navigate to sprint detail to log effort
-                    // This would ideally be handled through a modal or navigation
+                    if let sprint = selectedSprint {
+                        showingSprintDetail = true  // Just set the flag to true
+                    }
                 }) {
                     Text("Log Effort")
                         .fontWeight(.medium)
