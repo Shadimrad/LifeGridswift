@@ -11,8 +11,11 @@ import SwiftUI
 struct SprintDetailView: View {
     let sprint: Sprint
     @State private var showingEffortSheet = false
+    @State private var showingEffortEditor = false
+    @State private var selectedEffort: Effort? = nil
     @EnvironmentObject var sprintStore: SprintStore
     @State private var selectedDate = Date()
+    
     
     var body: some View {
         ScrollView {
@@ -97,10 +100,27 @@ struct SprintDetailView: View {
             .padding()
         }
         .navigationTitle("Sprint Details")
+        .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink(destination: EditSprintView(sprint: sprint)
+                        .environmentObject(sprintStore)) {
+                        Image(systemName: "pencil")
+                    }
+                }
+            }
         .sheet(isPresented: $showingEffortSheet) {
             DatePickerEffortLoggingView(sprint: sprint, initialDate: selectedDate)
                 .environmentObject(sprintStore)
+                .sheet(isPresented: $showingEffortEditor) {
+                    if let effort = selectedEffort {
+                        NavigationStack {
+                            EditEffortView(effort: effort, sprint: sprint)
+                                .environmentObject(sprintStore)
+                        }
+                    }
+                }
         }
+        
     }
     
     // Goal card view
@@ -195,14 +215,15 @@ struct SprintDetailView: View {
     private func dayCellView(for day: DayData) -> some View {
         ZStack {
             Circle()
-                .fill(getDayColor(for: day))
+                .fill(day.color) // Use the extension property
                 .frame(width: 30, height: 30)
             
             Text("\(Calendar.current.component(.day, from: day.date))")
                 .font(.system(size: 10))
-                .foregroundColor(day.score != nil && day.score! > 0.5 ? .white : .primary)
+                .foregroundColor(day.textColor) // Use the extension property
         }
     }
+
     
     // Recent efforts list
     private var effortsListView: some View {
@@ -242,32 +263,46 @@ struct SprintDetailView: View {
     
     // Effort row view
     private func effortRow(for effort: Effort) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                if let goal = sprint.goals.first(where: { $0.id == effort.goalId }) {
-                    Text(goal.title)
-                        .fontWeight(.medium)
-                } else {
-                    Text("Unknown Goal")
-                        .fontWeight(.medium)
+        Button(action: {
+            selectedEffort = effort
+            showingEffortEditor = true
+        }) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    if let goal = sprint.goals.first(where: { $0.id == effort.goalId }) {
+                        Text(goal.title)
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                    } else {
+                        Text("Unknown Goal")
+                            .fontWeight(.medium)
+                            .foregroundColor(.primary)
+                    }
+                    
+                    Text(effort.date, style: .date)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 
-                Text(effort.date, style: .date)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                Spacer()
+                
+                HStack {
+                    Text("\(effort.hours, specifier: "%.1f") hrs")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                        
+                    Image(systemName: "pencil.circle")
+                        .foregroundColor(.blue)
+                }
             }
-            
-            Spacer()
-            
-            Text("\(effort.hours, specifier: "%.1f") hrs")
-                .fontWeight(.semibold)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color(.secondarySystemBackground))
+            )
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(.systemBackground))
-        )
+        .buttonStyle(PlainButtonStyle()) // Ensures proper tap behavior
     }
     
     // Helper to calculate progress for a goal
@@ -399,6 +434,7 @@ struct CircularProgressView: View {
                 .font(.system(size: 10))
                 .fontWeight(.bold)
         }
+        
     }
     
     // Color based on progress

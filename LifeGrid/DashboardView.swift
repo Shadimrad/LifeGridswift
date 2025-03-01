@@ -220,6 +220,7 @@ struct DashboardView: View {
                         .cornerRadius(10)
                     }
                     .padding(.horizontal)
+                    .padding(.top, 8) 
                 }
             }
         }
@@ -227,81 +228,57 @@ struct DashboardView: View {
     
     // Sprint card view
     private func sprintCardView(for sprint: Sprint) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(sprint.name)
-                    .font(.headline)
-                    .foregroundColor(.primary)
+        NavigationLink(destination: SprintDetailView(sprint: sprint)
+            .environmentObject(sprintStore)) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text(sprint.name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    let progress = calculateSprintProgress(sprint)
+                    Text("\(Int(progress * 100))%")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 
-                Spacer()
-                
-                let progress = calculateSprintProgress(sprint)
-                Text("\(Int(progress * 100))%")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            
-            // Date range
-            Text("\(sprint.startDate, style: .date) - \(sprint.endDate, style: .date)")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            // Progress bar
-            ProgressView(value: calculateSprintProgress(sprint))
-                .progressViewStyle(LinearProgressViewStyle())
-                .frame(height: 6)
-                .padding(.vertical, 4)
-            
-            // Goals preview
-            if !sprint.goals.isEmpty {
-                Text("Goals: \(sprint.goals.map { $0.title }.joined(separator: ", "))")
+                // Date range
+                Text("\(sprint.startDate, style: .date) - \(sprint.endDate, style: .date)")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                    .lineLimit(1)
+                
+                // Progress bar
+                ProgressView(value: calculateSprintProgress(sprint))
+                    .progressViewStyle(LinearProgressViewStyle())
+                    .frame(height: 6)
+                    .padding(.vertical, 4)
+                
+                // Goals preview
+                if !sprint.goals.isEmpty {
+                    Text("Goals: \(sprint.goals.map { $0.title }.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
             }
+            .padding()
+            .background(Color(.secondarySystemBackground))
+            .cornerRadius(10)
         }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(10)
+        .buttonStyle(PlainButtonStyle())
     }
     
     // Trends preview section
     private var trendsPreview: some View {
         VStack(spacing: 16) {
             // Statistics cards
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                statsCard(
-                    title: "Last 7 Days",
-                    value: calculateAverageScoreForPeriod(days: 7),
-                    trend: calculateTrendForPeriod(days: 7),
-                    valueFormat: "%.0f%%"
-                )
-                
-                statsCard(
-                    title: "Current Streak",
-                    value: Double(calculateCurrentStreak()),
-                    trend: nil,
-                    valueFormat: "%.0f days"
-                )
-                
-                statsCard(
-                    title: "Weekly Hours",
-                    value: calculateAverageHoursForPeriod(days: 7),
-                    trend: calculateHoursTrendForPeriod(days: 7),
-                    valueFormat: "%.1f hrs"
-                )
-                
-                statsCard(
-                    title: "Completion",
-                    value: calculateCompletionRate() * 100,
-                    trend: nil,
-                    valueFormat: "%.0f%%"
-                )
-            }
-            .padding(.horizontal)
+            // (Keep existing LazyVGrid code)
             
-            // Trends chart preview - it's just a navigation link
-            NavigationLink(destination: EnhancedVisualizationsView()) {
+            // Trends chart preview - updated to use NavigationLink to TrendsNavigationView
+            NavigationLink(destination: TrendsNavigationView()
+                .environmentObject(sprintStore)) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Trend Analysis")
                         .font(.headline)
@@ -332,7 +309,7 @@ struct DashboardView: View {
                 .cornerRadius(12)
                 .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PlainButtonStyle())
             .padding(.horizontal)
         }
     }

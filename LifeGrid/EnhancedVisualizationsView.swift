@@ -539,7 +539,7 @@ struct DailyScoresChart: View {
                 Chart {
                     ForEach(chartData) { day in
                         BarMark(
-                            x: .value("Date", day.date, unit: .day),
+                            x: .value("Date", day.date),
                             y: .value("Score", day.score)
                         )
                         .foregroundStyle(
@@ -560,7 +560,7 @@ struct DailyScoresChart: View {
                     if let trendLine = calculateTrendLine() {
                         ForEach(trendLine) { point in
                             LineMark(
-                                x: .value("Date", point.date, unit: .day),
+                                x: .value("Date", point.date),
                                 y: .value("Trend", point.score)
                             )
                             .lineStyle(StrokeStyle(lineWidth: 2))
@@ -579,14 +579,11 @@ struct DailyScoresChart: View {
                     }
                 }
                 .chartXAxis {
-                    AxisMarks(values: .stride(by: dateRange.days > 14 ? .weekOfMonth : .day)) { value in
+                    AxisMarks { value in
                         if let date = value.as(Date.self) {
                             AxisValueLabel {
-                                if dateRange.days > 30 {
-                                    Text(date, format: .dateTime.month().day())
-                                } else {
-                                    Text(date, format: .dateTime.weekday(.abbreviated))
-                                }
+                                // Use simple date formatting that won't trigger calendar component issues
+                                Text(date, format: .dateTime.month().day())
                             }
                         }
                     }
@@ -1125,3 +1122,4 @@ struct WeeklyData: Identifiable {
     let hours: Double
     let averageScore: Double
 }
+

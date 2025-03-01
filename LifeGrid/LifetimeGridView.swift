@@ -1,8 +1,5 @@
 //
-//  LifetimeGridView.swift
-//  LifeGrid
-//
-//  Created on 2/28/25.
+//  LifetimeGridView.swift (Fixed)
 //
 
 import SwiftUI
@@ -17,6 +14,8 @@ struct LifetimeGridView: View {
     @State private var expandedYears: Set<Int> = []
     @State private var showingEffortSheet = false
     @State private var selectedEffortDate: Date? = nil
+    @State private var selectedEffort: Effort? = nil
+    @State private var showingEffortEditor = false
     
     @Namespace private var animationNamespace
     
@@ -102,17 +101,24 @@ struct LifetimeGridView: View {
                     dayDetailOverlay(for: day)
                 }
             }
+            // FIXED: Removed duplicate sheet and fixed the placement
             .sheet(isPresented: $showingEffortSheet, onDismiss: {
                 // Regenerate data after logging effort
                 lifetimeStore.generateLifetimeData()
             }) {
-                Group {
-                    if let date = selectedEffortDate,
-                       let sprint = getSprintForDay(date) {
-                        DatePickerEffortLoggingView(sprint: sprint, initialDate: date)
+                if let date = selectedEffortDate,
+                   let sprint = getSprintForDay(date) {
+                    DatePickerEffortLoggingView(sprint: sprint, initialDate: date)
+                        .environmentObject(sprintStore)
+                }
+            }
+            // Second sheet for effort editing
+            .sheet(isPresented: $showingEffortEditor) {
+                if let effort = selectedEffort,
+                   let sprint = getSprintForGoal(effort.goalId) {
+                    NavigationStack {
+                        EditEffortView(effort: effort, sprint: sprint)
                             .environmentObject(sprintStore)
-                    } else {
-                        EmptyView()
                     }
                 }
             }
@@ -171,7 +177,7 @@ struct LifetimeGridView: View {
                         Text("\(lifeStats.yearsLived)")
                             .font(.title)
                             .fontWeight(.bold)
-                        Text("Years Lived")
+                        Text("Years Passed")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -202,7 +208,7 @@ struct LifetimeGridView: View {
                         Text("\(lifeStats.weeksLived)")
                             .font(.headline)
                             .fontWeight(.bold)
-                        Text("Weeks Lived")
+                        Text("Weeks Passed")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -233,7 +239,7 @@ struct LifetimeGridView: View {
                         Text("\(lifeStats.daysLived)")
                             .font(.headline)
                             .fontWeight(.bold)
-                        Text("Days Lived")
+                        Text("Days Passed")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -316,6 +322,11 @@ struct LifetimeGridView: View {
                 .padding(.horizontal)
             }
         }
+    }
+    
+    // FIXED: Removed one of the duplicate getSprintForGoal functions
+    private func getSprintForGoal(_ goalId: UUID) -> Sprint? {
+        return sprintStore.getSprintForGoal(goalId)
     }
     
     // Detail view for a specific year
@@ -426,7 +437,7 @@ struct LifetimeGridView: View {
     private func dayCell(for day: DayData) -> some View {
         ZStack {
             Rectangle()
-                .fill(getDayColor(for: day))
+                .fill(day.color) // Use the extension property for consistent coloring
                 .matchedGeometryEffect(id: day.id, in: animationNamespace)
                 .frame(width: 30, height: 30)
                 .cornerRadius(4)
@@ -439,7 +450,7 @@ struct LifetimeGridView: View {
             // Show day number
             Text("\(Calendar.current.component(.day, from: day.date))")
                 .font(.system(size: 10))
-                .foregroundColor(getTextColor(for: day))
+                .foregroundColor(day.textColor) // Use the extension property
                 .opacity(0.8)
         }
     }
@@ -489,13 +500,25 @@ struct LifetimeGridView: View {
                             .font(.headline)
                         
                         ForEach(dayEfforts) { effort in
-                            HStack {
-                                Text(getGoalTitle(for: effort.goalId))
-                                Spacer()
-                                Text("\(String(format: "%.1f", effort.hours)) hrs")
-                                    .fontWeight(.medium)
+                            Button(action: {
+                                selectedEffort = effort
+                                showingEffortEditor = true
+                                // Don't dismiss overlay yet - let the sheet do that
+                            }) {
+                                HStack {
+                                    Text(getGoalTitle(for: effort.goalId))
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Text("\(String(format: "%.1f", effort.hours)) hrs")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                }
+                                .padding(.vertical, 6)
                             }
-                            .padding(.vertical, 6)
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
                     .padding(.horizontal)

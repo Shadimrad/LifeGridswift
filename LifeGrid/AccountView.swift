@@ -76,11 +76,18 @@ struct AccountView: View {
             }
             
             // Sprint Management
-            Section(header: Text("Sprints")) {
+            Section(header: Text("Progress & Analysis")) {
                 NavigationLink("Manage Sprints", destination: SprintsView()
                     .environmentObject(sprintStore))
                 
-                NavigationLink("View Sprint Analytics", destination: EnhancedVisualizationsView()
+                NavigationLink("Manage All Efforts", destination: EffortListView()
+                    .environmentObject(sprintStore))
+                
+                NavigationLink("View Analytics", destination: TrendsNavigationView()
+                    .environmentObject(sprintStore))
+                
+                NavigationLink("Life Grid View", destination: LifetimeGridView()
+                    .environmentObject(userSettings)
                     .environmentObject(sprintStore))
             }
             
@@ -94,10 +101,22 @@ struct AccountView: View {
                     importUserData()
                 }
                 
+                NavigationLink("Manage Efforts", destination: EffortListView()
+                    .environmentObject(sprintStore))
+                
                 Button("Delete All Data") {
                     showingDeleteConfirmation = true
                 }
                 .foregroundColor(.red)
+            }
+            
+            // Sprint Management
+            Section(header: Text("Progress & Analysis")) {
+                NavigationLink("Manage Sprints", destination: SprintsView()
+                    .environmentObject(sprintStore))
+                
+                NavigationLink("View Analytics", destination: TrendsNavigationView()
+                    .environmentObject(sprintStore))
             }
             
             // Account Actions
