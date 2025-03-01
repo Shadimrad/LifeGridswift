@@ -22,20 +22,24 @@ struct LifeGridApp: App {
                 // Use TabView to provide navigation between different views
                 TabView {
                     // Daily Grid View - shows sprints
-                    SprintGridMainView()
-                        .environmentObject(userSettings)
-                        .environmentObject(sprintStore)
-                        .tabItem {
-                            Label("Sprint View", systemImage: "chart.bar.fill")
-                        }
+                    NavigationStack {
+                        SprintGridMainView()
+                            .environmentObject(userSettings)
+                            .environmentObject(sprintStore)
+                    }
+                    .tabItem {
+                        Label("Sprint View", systemImage: "chart.bar.fill")
+                    }
                     
                     // Life Grid View - shows full lifespan
-                    LifetimeGridView()
-                        .environmentObject(userSettings)
-                        .environmentObject(sprintStore)
-                        .tabItem {
-                            Label("Life Grid", systemImage: "calendar")
-                        }
+                    NavigationStack {
+                        LifetimeGridView()
+                            .environmentObject(userSettings)
+                            .environmentObject(sprintStore)
+                    }
+                    .tabItem {
+                        Label("Life Grid", systemImage: "calendar")
+                    }
                     
                     // Sprints Management
                     NavigationStack {
@@ -50,7 +54,7 @@ struct LifeGridApp: App {
                     NavigationStack {
                         AccountView()
                             .environmentObject(userSettings)
-                            .environmentObject(sprintStore) // <-- Add this line
+                            .environmentObject(sprintStore)
                     }
                     .tabItem {
                         Label("Settings", systemImage: "gear")

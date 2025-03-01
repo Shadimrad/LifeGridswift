@@ -424,6 +424,7 @@ struct SprintDetailView_Previews: PreviewProvider {
                 Goal(title: "Exercise", targetHours: 1.0, weight: 0.3)
             ]
         )
+        
         return NavigationStack {
             SprintDetailView(sprint: sampleSprint)
                 .environmentObject(SprintStore())

@@ -101,12 +101,22 @@ extension YearData {
     }
 }
 
-struct Sprint: Identifiable, Codable {
+struct Sprint: Identifiable, Hashable, Codable{
     var id = UUID()
     var name: String
     var startDate: Date
     var endDate: Date
     var goals: [Goal]
+    
+    //  to make Sprint Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    // to make Sprint Equatable (required for Hashable)
+    static func == (lhs: Sprint, rhs: Sprint) -> Bool {
+        lhs.id == rhs.id
+    }
     
     // This method calculates the daily scores for this sprint.
     func dailyScores(for efforts: [Effort]) -> [Double] {
@@ -127,11 +137,19 @@ struct Sprint: Identifiable, Codable {
     }
 }
 
-struct Goal: Identifiable, Codable {
+struct Goal: Identifiable, Codable, Hashable {
     var id = UUID()
     var title: String
-    var targetHours: Double  // e.g., 2 hours per day
-    var weight: Double       // e.g., 0.4 for 40% of the total score (or any scale you decide)
+    var targetHours: Double
+    var weight: Double
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: Goal, rhs: Goal) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 struct Effort: Identifiable, Codable {
@@ -139,4 +157,43 @@ struct Effort: Identifiable, Codable {
     var goalId: UUID       // Reference to which goal this effort is for.
     var date: Date         // The day this effort was logged.
     var hours: Double      // How many hours were logged.
+}
+
+enum TrendDirection {
+    case up
+    case down
+    case neutral
+    
+    var icon: String {
+        switch self {
+        case .up:
+            return "arrow.up"
+        case .down:
+            return "arrow.down"
+        case .neutral:
+            return "arrow.forward"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .up:
+            return .green
+        case .down:
+            return .red
+        case .neutral:
+            return .gray
+        }
+    }
+    
+    var description: String {
+        switch self {
+        case .up:
+            return "Improving"
+        case .down:
+            return "Declining"
+        case .neutral:
+            return "Stable"
+        }
+    }
 }

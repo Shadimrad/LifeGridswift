@@ -16,13 +16,6 @@ enum TimeRange: String, CaseIterable {
     case year = "Year"
 }
 
-// Enum for trend direction
-enum TrendDirection {
-    case up
-    case down
-    case neutral
-}
-
 // Weekly average data structure
 struct WeeklyAverage: Identifiable {
     var id = UUID()
@@ -406,52 +399,49 @@ struct TrendsView: View {
                             return Double(daysWithData.count) / Double(pastDays.count)
                         }
                         
-                        // Helper method to get goal performance data
-                        private func getGoalPerformanceData() -> [GoalPerformance] {
-                            // Collect all goals from all sprints that fall within the selected time range
-                            var goalPerformance: [UUID: (title: String, totalTarget: Double, totalLogged: Double)] = [:]
-                            
-                            // Get all unique sprints for the date range
-                            let days = dayDataArray
-                            let dates = days.map { $0.date }
-                            
-                            // Get all efforts for the date range
-                            let efforts = dates.flatMap { date in
-                                sprintStore.effortsForDate(date)
-                            }
-                            
-                            // Group efforts by goal
-                            for effort in efforts {
-                                // Find which sprint this effort belongs to
-                                guard let date = dates.first(where: { Calendar.current.isDate($0, inSameDayAs: effort.date) }),
-                                      let sprint = sprintStore.sprintForDate(date),
-                                      let goal = sprint.goals.first(where: { $0.id == effort.goalId }) else {
-                                    continue
-                                }
-                                
-                                // Add goal data
-                                if let existingData = goalPerformance[goal.id] {
-                                    let updatedLogged = existingData.totalLogged + effort.hours
-                                    goalPerformance[goal.id] = (
-                                        title: existingData.title,
-                                        totalTarget: existingData.totalTarget + goal.targetHours,
-                                        totalLogged: updatedLogged
-                                    )
-                                } else {
-                                    goalPerformance[goal.id] = (
-                                        title: goal.title,
-                                        totalTarget: goal.targetHours,
-                                        totalLogged: effort.hours
-                                    )
-                                }
-                            }
-                            
-                            // Calculate performance percentages
-                            return goalPerformance.map { (id, data) in
-                                let performance = data.totalTarget > 0 ? min(data.totalLogged / data.totalTarget, 1.0) : 0
-                                return GoalPerformance(goalTitle: data.title, performance: performance)
-                            }
-                        }
+    private func getGoalPerformanceData() -> [GoalPerformance] {
+        // Collect all goals from all sprints that fall within the selected time range
+        var goalPerformance: [UUID: (title: String, totalTarget: Double, totalLogged: Double)] = [:]
+        
+        // Get all unique sprints for the date range
+        let days = dayDataArray
+        let dates = days.map { $0.date }
+        
+        // Get all efforts for the date range
+        let efforts = dates.flatMap { date in
+            sprintStore.effortsForDate(date)
+        }
+        
+        // Group efforts by goal
+        for effort in efforts {
+            // Find the goal this effort belongs to
+            guard let goal = sprintStore.getGoalById(effort.goalId) else {
+                continue
+            }
+            
+            // Add goal data
+            if let existingData = goalPerformance[goal.id] {
+                let updatedLogged = existingData.totalLogged + effort.hours
+                goalPerformance[goal.id] = (
+                    title: existingData.title,
+                    totalTarget: existingData.totalTarget + goal.targetHours,
+                    totalLogged: updatedLogged
+                )
+            } else {
+                goalPerformance[goal.id] = (
+                    title: goal.title,
+                    totalTarget: goal.targetHours,
+                    totalLogged: effort.hours
+                )
+            }
+        }
+        
+        // Calculate performance percentages
+        return goalPerformance.map { (id, data) in
+            let performance = data.totalTarget > 0 ? min(data.totalLogged / data.totalTarget, 1.0) : 0
+            return GoalPerformance(id: id, goalTitle: data.title, performance: performance)
+        }
+    }
                     }
 
                     // Status card view for displaying metrics
@@ -487,27 +477,13 @@ struct TrendsView: View {
                         }
                         
                         private func trendIcon(for trend: TrendDirection) -> String {
-                            switch trend {
-                            case .up:
-                                return "arrow.up"
-                            case .down:
-                                return "arrow.down"
-                            case .neutral:
-                                return "arrow.right"
-                            }
+                            return trend.icon
                         }
-                        
+
                         private func trendColor(for trend: TrendDirection) -> Color {
-                            switch trend {
-                            case .up:
-                                return .green
-                            case .down:
-                                return .red
-                            case .neutral:
-                                return .gray
-                            }
+                            return trend.color
                         }
-                    }
+                        }
 
                     struct TrendsView_Previews: PreviewProvider {
                         static var previews: some View {

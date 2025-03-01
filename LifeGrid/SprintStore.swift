@@ -2,38 +2,101 @@
 //  SprintStore.swift
 //  LifeGrid
 //
-//  Created on 2/27/25.
+//  Created by shaqayeq Rad on 2/26/25.
 //
 
-import SwiftUI
+import Foundation
 import Combine
 
-// Main store for sprints and efforts
 class SprintStore: ObservableObject {
-    @Published var sprints: [Sprint] = [] {
-        didSet {
-            DataPersistence.shared.saveSprints(sprints)
-        }
-    }
+    @Published var sprints: [Sprint] = []
+    @Published var efforts: [Effort] = []
     
-    @Published var efforts: [Effort] = [] {
-        didSet {
-            DataPersistence.shared.saveEfforts(efforts)
-        }
-    }
-    
+    // Initialize and load data
     init() {
-        // Load saved data
-        self.sprints = DataPersistence.shared.loadSprints()
-        self.efforts = DataPersistence.shared.loadEfforts()
+        loadSprints()
+        loadEfforts()
     }
     
-    // Add a new effort
+    // MARK: - Persistence Methods
+    
+    func saveSprints() {
+        DataPersistence.shared.saveSprints(sprints)
+    }
+    
+    func loadSprints() {
+        sprints = DataPersistence.shared.loadSprints()
+    }
+    
+    func saveEfforts() {
+        DataPersistence.shared.saveEfforts(efforts)
+    }
+    
+    func loadEfforts() {
+        efforts = DataPersistence.shared.loadEfforts()
+    }
+    
+    // MARK: - Sprint Methods
+    
+    func addSprint(_ sprint: Sprint) {
+        sprints.append(sprint)
+        saveSprints()
+    }
+    
+    func updateSprint(_ updatedSprint: Sprint) {
+        if let index = sprints.firstIndex(where: { $0.id == updatedSprint.id }) {
+            sprints[index] = updatedSprint
+            saveSprints()
+        }
+    }
+    
+    func deleteSprint(_ sprint: Sprint) {
+        // Also delete any efforts associated with this sprint's goals
+        let goalIds = Set(sprint.goals.map { $0.id })
+        efforts.removeAll { goalIds.contains($0.goalId) }
+        
+        // Remove the sprint
+        sprints.removeAll { $0.id == sprint.id }
+        
+        // Save changes
+        saveSprints()
+        saveEfforts()
+    }
+    
+    // MARK: - Effort Methods
+    
     func addEffort(_ effort: Effort) {
         efforts.append(effort)
+        saveEfforts()
     }
     
-    // Get efforts for a specific date
+    func updateEffort(_ updatedEffort: Effort) {
+        if let index = efforts.firstIndex(where: { $0.id == updatedEffort.id }) {
+            efforts[index] = updatedEffort
+            saveEfforts()
+        }
+    }
+    
+    func deleteEffort(_ effort: Effort) {
+        efforts.removeAll { $0.id == effort.id }
+        saveEfforts()
+    }
+    
+    // Delete all efforts for a specific goal
+    func deleteEffortsForGoal(goalId: UUID) {
+        efforts.removeAll { $0.goalId == goalId }
+        saveEfforts()
+    }
+    
+    // MARK: - Query Methods
+    
+    // Get all efforts for a specific sprint
+    func effortsForSprint(_ sprint: Sprint) -> [Effort] {
+        let goalIds = Set(sprint.goals.map { $0.id })
+        return efforts.filter { goalIds.contains($0.goalId) }
+    }
+    
+    // Get all efforts for a specific date
     func effortsForDate(_ date: Date) -> [Effort] {
         let calendar = Calendar.current
         let targetDay = calendar.startOfDay(for: date)
@@ -44,272 +107,123 @@ class SprintStore: ObservableObject {
         }
     }
     
-    // Get efforts for a specific sprint
-    func effortsForSprint(_ sprint: Sprint) -> [Effort] {
-        let calendar = Calendar.current
-        let sprintStart = calendar.startOfDay(for: sprint.startDate)
-        let sprintEnd = calendar.startOfDay(for: sprint.endDate)
-        
-        return efforts.filter { effort in
-            let effortDay = calendar.startOfDay(for: effort.date)
-            return effortDay >= sprintStart && effortDay <= sprintEnd
+    // Get goals from all sprints that match the goal ID
+    func getGoalById(_ goalId: UUID) -> Goal? {
+        for sprint in sprints {
+            if let goal = sprint.goals.first(where: { $0.id == goalId }) {
+                return goal
+            }
+        }
+        return nil
+    }
+    
+    // Find which sprint a goal belongs to
+    func getSprintForGoal(_ goalId: UUID) -> Sprint? {
+        return sprints.first { sprint in
+            sprint.goals.contains(where: { $0.id == goalId })
         }
     }
     
-    
-    // Delete a sprint
-    func deleteSprint(_ sprint: Sprint) {
-        // First, delete all efforts associated with this sprint
-        efforts = efforts.filter { effort in
-            !isEffortInSprint(effort, sprint: sprint)
-        }
-        
-        // Then remove the sprint itself
-        if let index = sprints.firstIndex(where: { $0.id == sprint.id }) {
-            sprints.remove(at: index)
-        }
-    }
-
-    // Delete a specific effort
-    func deleteEffort(_ effort: Effort) {
-        if let index = efforts.firstIndex(where: { $0.id == effort.id }) {
-            efforts.remove(at: index)
-        }
-    }
-
-    // Edit a sprint
-    func updateSprint(_ updatedSprint: Sprint) {
-        if let index = sprints.firstIndex(where: { $0.id == updatedSprint.id }) {
-            sprints[index] = updatedSprint
-        }
-    }
-
-    // Check if an effort belongs to a specific sprint
-    private func isEffortInSprint(_ effort: Effort, sprint: Sprint) -> Bool {
-        let calendar = Calendar.current
-        let effortDate = calendar.startOfDay(for: effort.date)
-        let sprintStart = calendar.startOfDay(for: sprint.startDate)
-        let sprintEnd = calendar.startOfDay(for: sprint.endDate)
-        
-        return effortDate >= sprintStart && effortDate <= sprintEnd &&
-               sprint.goals.contains(where: { $0.id == effort.goalId })
-    }
-    
-    // Get a sprint that contains a specific date
-    func sprintForDate(_ date: Date) -> Sprint? {
+    // Check if a date is within any sprint
+    func isDateInAnySprint(_ date: Date) -> Bool {
         let calendar = Calendar.current
         let targetDay = calendar.startOfDay(for: date)
         
-        return sprints.first { sprint in
+        return sprints.contains { sprint in
             let sprintStart = calendar.startOfDay(for: sprint.startDate)
             let sprintEnd = calendar.startOfDay(for: sprint.endDate)
             return targetDay >= sprintStart && targetDay <= sprintEnd
         }
     }
     
-    // Generate day data for a specific date range
+    // MARK: - Data Generation for Charts and Visualizations
+    
+    // Generate day data for a date range
     func generateDayDataForRange(startDate: Date, endDate: Date) -> [DayData] {
         let calendar = Calendar.current
         let startDay = calendar.startOfDay(for: startDate)
         let endDay = calendar.startOfDay(for: endDate)
         
-        guard let daysCount = calendar.dateComponents([.day], from: startDay, to: endDay).day.map({ $0 + 1 }) else {
+        // Calculate number of days in the range
+        guard let dayCount = calendar.dateComponents([.day], from: startDay, to: endDay).day?.magnitude else {
             return []
         }
         
-        var dayDataArray: [DayData] = []
+        var result: [DayData] = []
         
-        for i in 0..<daysCount {
-            if let currentDate = calendar.date(byAdding: .day, value: i, to: startDay) {
-                // Find if this day is part of any sprint
-                if let sprint = sprintForDate(currentDate) {
-                    let sprintEfforts = effortsForSprint(sprint)
-                    let scores = sprint.dailyScores(for: sprintEfforts)
-                    
-                    // Find the day index in the sprint
-                    if let dayIndex = calendar.dateComponents([.day], from: sprint.startDate, to: currentDate).day,
-                       dayIndex >= 0 && dayIndex < scores.count {
-                        // Get the score for this day
-                        let score = scores[dayIndex]
-                        dayDataArray.append(DayData(date: currentDate, score: score))
-                    } else {
-                        dayDataArray.append(DayData(date: currentDate, score: nil))
-                    }
-                } else {
-                    // Not part of any sprint, add with nil score
-                    dayDataArray.append(DayData(date: currentDate, score: nil))
-                }
-            }
-        }
-        
-        return dayDataArray
-    }
-}
-
-// A special class to manage lifetime grid data based on user settings
-class LifetimeGridStore: ObservableObject {
-    @Published var lifetimeData: [YearData] = []
-    
-    // Reference to our main data stores
-    var userSettings: UserSettings
-    var sprintStore: SprintStore
-    
-    private var cancellables = Set<AnyCancellable>()
-    
-    init(userSettings: UserSettings, sprintStore: SprintStore) {
-        self.userSettings = userSettings
-        self.sprintStore = sprintStore
-        
-        // Generate the lifetime data grid
-        generateLifetimeData()
-        
-        // Set up subscriptions to update when underlying data changes
-        setupSubscriptions()
-    }
-    
-    // Set up subscriptions to update the grid when data changes
-    private func setupSubscriptions() {
-        // Update when user settings change
-        userSettings.$currentAge
-            .combineLatest(userSettings.$targetAge)
-            .sink { [weak self] _, _ in
-                self?.generateLifetimeData()
-            }
-            .store(in: &cancellables)
-        
-        // Update when sprints or efforts change
-        sprintStore.$sprints
-            .combineLatest(sprintStore.$efforts)
-            .sink { [weak self] _, _ in
-                self?.generateLifetimeData()
-            }
-            .store(in: &cancellables)
-    }
-    
-    // Generate the lifetime grid data based on user settings
-    func generateLifetimeData() {
-        let calendar = Calendar.current
-        let today = Date()
-        
-        // Calculate start date based on current age
-        var dateComponents = DateComponents()
-        dateComponents.year = -userSettings.currentAge
-        let startDate = calendar.date(byAdding: dateComponents, to: today) ?? today
-        
-        // Calculate end date based on target age
-        let yearsLeft = userSettings.targetAge - userSettings.currentAge
-        dateComponents.year = yearsLeft
-        let endDate = calendar.date(byAdding: dateComponents, to: today) ?? today
-        
-        // Initialize empty year data
-        var years: [YearData] = []
-        
-        // Iterate through each year
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy"
-        
-        var currentYear = calendar.component(.year, from: startDate)
-        let endYear = calendar.component(.year, from: endDate)
-        
-        while currentYear <= endYear {
-            // Create year start and end dates
-            var startComponents = DateComponents()
-            startComponents.year = currentYear
-            startComponents.month = 1
-            startComponents.day = 1
-            let yearStart = calendar.date(from: startComponents)!
-            
-            var endComponents = DateComponents()
-            endComponents.year = currentYear
-            endComponents.month = 12
-            endComponents.day = 31
-            let yearEnd = calendar.date(from: endComponents)!
-            
-            // Skip years before start date or after end date
-            if yearEnd < startDate || yearStart > endDate {
-                currentYear += 1
+        // Create a day data entry for each day in the range
+        for dayOffset in 0...dayCount {
+            guard let currentDate = calendar.date(byAdding: .day, value: Int(dayOffset), to: startDay) else {
                 continue
             }
             
-            // Adjust start/end for partial years
-            let adjustedStart = yearStart < startDate ? startDate : yearStart
-            let adjustedEnd = yearEnd > endDate ? endDate : yearEnd
+            // Get all efforts for this day
+            let dayEfforts = effortsForDate(currentDate)
             
-            // Get days for this year
-            let days = generateDaysForRange(adjustedStart, adjustedEnd)
+            // If no efforts, add with nil score
+            if dayEfforts.isEmpty {
+                result.append(DayData(date: currentDate, score: nil))
+                continue
+            }
             
-            // Create year data
-            let yearData = YearData(
-                year: currentYear,
-                startDate: adjustedStart,
-                endDate: adjustedEnd,
-                days: days
-            )
+            // Calculate weighted score based on goals
+            var dayScore = 0.0
             
-            years.append(yearData)
-            currentYear += 1
-        }
-        
-        self.lifetimeData = years
-    }
-    
-    // Generate days for a date range
-    private func generateDaysForRange(_ startDate: Date, _ endDate: Date) -> [DayData] {
-        let calendar = Calendar.current
-        let startDay = calendar.startOfDay(for: startDate)
-        let endDay = calendar.startOfDay(for: endDate)
-        
-        guard let daysCount = calendar.dateComponents([.day], from: startDay, to: endDay).day.map({ $0 + 1 }) else {
-            return []
-        }
-        
-        var days: [DayData] = []
-        
-        for i in 0..<daysCount {
-            if let currentDate = calendar.date(byAdding: .day, value: i, to: startDay) {
-                // Find if this day is part of any sprint
-                if let sprintData = getDayScoreFromSprints(currentDate) {
-                    days.append(sprintData)
-                } else {
-                    // Not part of any sprint, add with nil score
-                    days.append(DayData(date: currentDate, score: nil))
+            for effort in dayEfforts {
+                if let goal = getGoalById(effort.goalId) {
+                    let targetHours = goal.targetHours
+                    let progress = min(effort.hours / targetHours, 1.0)
+                    let weightedScore = progress * goal.weight
+                    dayScore += weightedScore
                 }
             }
+            
+            // Cap at 1.0 (100%)
+            result.append(DayData(date: currentDate, score: min(1.0, dayScore)))
         }
         
-        return days
+        return result
     }
     
-    // Get day score from any sprint that contains this day
-    private func getDayScoreFromSprints(_ date: Date) -> DayData? {
+    // Generate stats for a specific time period
+    func generateStatsForPeriod(days: Int) -> (avgScore: Double, completionRate: Double, streak: Int) {
         let calendar = Calendar.current
-        let day = calendar.startOfDay(for: date)
+        let today = calendar.startOfDay(for: Date())
         
-        for sprint in sprintStore.sprints {
-            let sprintStart = calendar.startOfDay(for: sprint.startDate)
-            let sprintEnd = calendar.startOfDay(for: sprint.endDate)
-            
-            // Check if day is in sprint range
-            if day >= sprintStart && day <= sprintEnd {
-                // Filter efforts for this sprint
-                let sprintEfforts = sprintStore.efforts.filter { effort in
-                    let effortDate = calendar.startOfDay(for: effort.date)
-                    return effortDate >= sprintStart && effortDate <= sprintEnd
-                }
-                
-                // Calculate scores for this sprint
-                let scores = sprint.dailyScores(for: sprintEfforts)
-                
-                // Find the day index in the sprint
-                if let dayIndex = calendar.dateComponents([.day], from: sprintStart, to: day).day,
-                   dayIndex >= 0 && dayIndex < scores.count {
-                    // Get the score for this day
-                    let score = scores[dayIndex]
-                    return DayData(date: date, score: score)
-                }
-            }
+        guard let startDate = calendar.date(byAdding: .day, value: -days, to: today) else {
+            return (0, 0, 0)
         }
         
-        return nil
+        // Get day data
+        let dayData = generateDayDataForRange(startDate: startDate, endDate: today)
+        
+        // Calculate average score
+        let daysWithScores = dayData.filter { $0.score != nil }
+        let avgScore = daysWithScores.isEmpty ? 0 : daysWithScores.reduce(0.0) { $0 + ($1.score ?? 0) } / Double(daysWithScores.count)
+        
+        // Calculate completion rate
+        let completionRate = Double(daysWithScores.count) / Double(dayData.count)
+        
+        // Calculate current streak
+        var streak = 0
+        var currentDate = today
+        
+        while true {
+            let dayData = generateDayDataForRange(startDate: currentDate, endDate: currentDate)
+            
+            guard let dayScore = dayData.first?.score, dayScore > 0.3 else {
+                break
+            }
+            
+            streak += 1
+            
+            guard let previousDay = calendar.date(byAdding: .day, value: -1, to: currentDate) else {
+                break
+            }
+            
+            currentDate = previousDay
+        }
+        
+        return (avgScore, completionRate, streak)
     }
 }
