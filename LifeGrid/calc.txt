@@ -1,0 +1,56 @@
+func calculateCumulativeScores(
+    efforts: [Effort],
+    startDate: Date,
+    endDate: Date,
+    goals: [Goal]
+) -> [Double] {
+    let calendar = Calendar.current
+    let dayCount = calendar.dateComponents([.day], from: startDate, to: endDate).day! + 1
+    
+    // Initialize memoization table with default values
+    var dpTable = Array(repeating: 0.0, count: dayCount)
+    
+    // Build the solution bottom-up
+    for effort in efforts {
+        // Calculate day index efficiently
+        guard let dayIndex = getDayIndex(for: effort.date, relativeTo: startDate) else { continue }
+        guard dayIndex >= 0 && dayIndex < dayCount else { continue }
+        
+        // Find matching goal for weighted scoring
+        guard let goal = goals.first(where: { $0.id == effort.goalId }) else { continue }
+        
+        // Calculate score with normalization and weight factors
+        let progress = min(effort.hours / goal.targetHours, 1.0)
+        let weightedScore = progress * goal.weight
+        
+        // Apply the score to the memoization table
+        dpTable[dayIndex] += weightedScore
+    }
+    
+    // Optional: Apply subproblem optimization for weekly/monthly rollups
+    let weeklyScores = calculateRollingAverages(dailyScores: dpTable, windowSize: 7)
+    let monthlyScores = calculateRollingAverages(dailyScores: dpTable, windowSize: 30)
+    
+    return dpTable
+}
+
+// Sliding window algorithm for efficient rolling averages
+func calculateRollingAverages(dailyScores: [Double], windowSize: Int) -> [Double] {
+    guard dailyScores.count >= windowSize else {
+        return dailyScores.map { $0 / Double(dailyScores.count) }
+    }
+    
+    var result = [Double]()
+    var windowSum = dailyScores[0..<windowSize].reduce(0.0, +)
+    
+    // Add first average
+    result.append(windowSum / Double(windowSize))
+    
+    // Use sliding window technique for O(n) computation
+    for i in windowSize..<dailyScores.count {
+        windowSum = windowSum - dailyScores[i - windowSize] + dailyScores[i]
+        result.append(windowSum / Double(windowSize))
+    }
+    
+    return result
+}
