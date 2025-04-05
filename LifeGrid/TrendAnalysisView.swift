@@ -1,25 +1,141 @@
-//
-//  TrendAnalysisView.swift
-//  LifeGrid
-//
-//  Created by shaqayeq Rad on 2/28/25.
-//
-
 import SwiftUI
 import Charts
 
-// Data model for trend analysis
-struct TrendData: Identifiable {
+// MARK: - Data Structures
+
+struct DailyScorePoint: Identifiable {
     var id = UUID()
     var date: Date
     var score: Double
-    var trend4Days: Double?
-    var trendWeek: Double?
-    var trend10Days: Double?
-    var overallTrend: Double?
 }
 
-// View for displaying trend analysis
+struct TrendLinePoint: Identifiable {
+    var id = UUID()
+    var date: Date
+    var value: Double
+}
+
+struct TrendChartData {
+    var dailyScores: [DailyScorePoint] = []
+    var overallTrend: [TrendLinePoint] = []
+    var weeklyTrend: [TrendLinePoint] = []
+    var fourDayTrend: [TrendLinePoint] = []
+}
+
+// MARK: - Fixed Chart Rendering Function
+
+@available(iOS 16.0, *)
+private func createFixedChart(
+    chartData: TrendChartData,
+    showShortTermTrends: Bool
+) -> some View {
+    
+    Chart {
+        // 1) Daily Scores (blue line and points)
+        ForEach(chartData.dailyScores) { dataPoint in
+            LineMark(
+                x: .value("Date", dataPoint.date),
+                y: .value("Score", dataPoint.score)
+            )
+            .foregroundStyle(by: .value("Series", "DailyScore"))
+            .interpolationMethod(.catmullRom)
+        }
+        
+        ForEach(chartData.dailyScores) { dataPoint in
+            PointMark(
+                x: .value("Date", dataPoint.date),
+                y: .value("Score", dataPoint.score)
+            )
+            .foregroundStyle(by: .value("Series", "DailyScore"))
+            .symbolSize(30)
+        }
+        
+        // 2) Overall Trend (purple line, two points)
+        let overallPoints = chartData.overallTrend
+        if overallPoints.count >= 2 {
+            let firstPoint = overallPoints.first!
+            let lastPoint = overallPoints.last!
+            
+            LineMark(
+                x: .value("Date", firstPoint.date),
+                y: .value("Overall", firstPoint.value)
+            )
+            .foregroundStyle(by: .value("Series", "OverallTrend"))
+            .lineStyle(StrokeStyle(lineWidth: 3))
+            
+            LineMark(
+                x: .value("Date", lastPoint.date),
+                y: .value("Overall", lastPoint.value)
+            )
+            .foregroundStyle(by: .value("Series", "OverallTrend"))
+            .lineStyle(StrokeStyle(lineWidth: 3))
+        }
+        
+        // 3) Weekly Trend (green dashed line, two points)
+        let weeklyPoints = chartData.weeklyTrend
+        if showShortTermTrends && weeklyPoints.count >= 2 {
+            let firstPoint = weeklyPoints.first!
+            let lastPoint = weeklyPoints.last!
+            
+            LineMark(
+                x: .value("Date", firstPoint.date),
+                y: .value("Weekly", firstPoint.value)
+            )
+            .foregroundStyle(by: .value("Series", "WeeklyTrend"))
+            .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 3]))
+            
+            LineMark(
+                x: .value("Date", lastPoint.date),
+                y: .value("Weekly", lastPoint.value)
+            )
+            .foregroundStyle(by: .value("Series", "WeeklyTrend"))
+            .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 3]))
+        }
+        
+        // 4) 4-Day Trend (red dotted line, two points)
+        let fourDayPoints = chartData.fourDayTrend
+        if showShortTermTrends && fourDayPoints.count >= 2 {
+            let firstPoint = fourDayPoints.first!
+            let lastPoint = fourDayPoints.last!
+            
+            LineMark(
+                x: .value("Date", firstPoint.date),
+                y: .value("4-Day", firstPoint.value)
+            )
+            .foregroundStyle(by: .value("Series", "FourDayTrend"))
+            .lineStyle(StrokeStyle(lineWidth: 2, dash: [2, 2]))
+            
+            LineMark(
+                x: .value("Date", lastPoint.date),
+                y: .value("4-Day", lastPoint.value)
+            )
+            .foregroundStyle(by: .value("Series", "FourDayTrend"))
+            .lineStyle(StrokeStyle(lineWidth: 2, dash: [2, 2]))
+        }
+    }
+    .chartYScale(domain: 0...1.1)
+    .chartForegroundStyleScale([
+        "DailyScore": .blue,
+        "OverallTrend": .purple,
+        "WeeklyTrend": .green,
+        "FourDayTrend": .red
+    ])
+    .chartXAxis {
+        AxisMarks { value in
+            if let date = value.as(Date.self) {
+                AxisValueLabel {
+                    Text(date, format: .dateTime.day().month())
+                        .font(.caption)
+                }
+            }
+        }
+    }
+    .frame(height: 300)
+}
+
+// MARK: - Trend Analysis View
+
+@available(iOS 16.0, *)
 struct TrendAnalysisView: View {
     @EnvironmentObject var sprintStore: SprintStore
     @State private var selectedPeriod: TrendPeriod = .week
@@ -41,222 +157,175 @@ struct TrendAnalysisView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Score Trends")
-                .font(.headline)
-            
-            // Period selector
-            Picker("Period", selection: $selectedPeriod) {
-                ForEach(TrendPeriod.allCases) { period in
-                    Text(period.rawValue).tag(period)
-                }
-            }
-            .pickerStyle(.segmented)
-            
-            if let trendData = generateTrendData() {
-                // Score trend chart
-                if #available(iOS 16.0, *) {
-                    Chart {
-                        // Daily scores
-                        ForEach(trendData) { dataPoint in
-                            LineMark(
-                                x: .value("Date", dataPoint.date),
-                                y: .value("Score", dataPoint.score)
-                            )
-                            .foregroundStyle(.blue)
-                            .symbol {
-                                Circle()
-                                    .fill(.blue)
-                                    .frame(width: 6, height: 6)
-                            }
-                        }
-                        
-                        // 4-Day trend line
-                        if selectedPeriod != .week {
-                            ForEach(trendData.filter { $0.trend4Days != nil }) { dataPoint in
-                                LineMark(
-                                    x: .value("Date", dataPoint.date),
-                                    y: .value("4-Day Trend", dataPoint.trend4Days!)
-                                )
-                                .foregroundStyle(.red)
-                                .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                            }
-                        }
-                        
-                        // Weekly trend line
-                        ForEach(trendData.filter { $0.trendWeek != nil }) { dataPoint in
-                            LineMark(
-                                x: .value("Date", dataPoint.date),
-                                y: .value("Weekly Trend", dataPoint.trendWeek!)
-                            )
-                            .foregroundStyle(.green)
-                            .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                        }
-                        
-                        // Overall trend line
-                        ForEach(trendData.filter { $0.overallTrend != nil }) { dataPoint in
-                            LineMark(
-                                x: .value("Date", dataPoint.date),
-                                y: .value("Overall Trend", dataPoint.overallTrend!)
-                            )
-                            .foregroundStyle(.purple)
-                            .lineStyle(StrokeStyle(lineWidth: 2, dash: [2, 2]))
-                        }
-                    }
-                    .chartYScale(domain: -0.1...1.1)
-                    .chartXAxis {
-                        AxisMarks(values: .stride(by: .day, count: selectedPeriod.days > 30 ? 7 : 1)) { value in
-                            if let date = value.as(Date.self) {
-                                AxisValueLabel {
-                                    Text(date, format: .dateTime.day().month())
-                                        .font(.caption)
-                                }
-                            }
-                        }
-                    }
-                    .frame(height: 250)
-                } else {
-                    // Fallback for iOS 15
-                    Text("Trends chart requires iOS 16+")
-                        .frame(height: 250)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.gray.opacity(0.1))
-                }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                Text("Score Trends")
+                    .font(.title2)
+                    .bold()
+                    .padding(.bottom, 8)
                 
-                // Trend analysis information
-                if let analysis = analyzeTrends(trendData) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("Trend Analysis")
-                                .font(.headline)
-                            Spacer()
-                        }
+                // Period Selector
+                Picker("Period", selection: $selectedPeriod) {
+                    ForEach(TrendPeriod.allCases) { period in
+                        Text(period.rawValue).tag(period)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                .padding(.bottom, 16)
+                
+                if let trendChartData = generateChartData() {
+                    // Chart and Legend
+                    VStack(alignment: .leading, spacing: 16) {
+                        createFixedChart(
+                            chartData: trendChartData,
+                            showShortTermTrends: selectedPeriod != .week
+                        )
                         
-                        Group {
+                        // Legend
+                        HStack(spacing: 30) {
+                            LegendItem(color: .blue, label: "Daily Score")
+                            LegendItem(color: .purple, label: "Overall")
+                            if selectedPeriod != .week {
+                                LegendItem(color: .green, label: "Weekly")
+                                LegendItem(color: .red, label: "4-Day")
+                            }
+                        }
+                        .padding(.top, 12)
+                    }
+                    .padding(.horizontal)
+                    
+                    // Trend Analysis Information
+                    if let analysis = analyzeTrends(trendChartData) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Trend Analysis")
+                                .font(.title3)
+                                .bold()
+                            
                             StatRow(
                                 title: "4-Day Trend",
                                 value: analysis.slope4Day,
                                 description: trendDescription(analysis.slope4Day)
                             )
-                            
                             StatRow(
                                 title: "Weekly Trend",
                                 value: analysis.slopeWeek,
                                 description: trendDescription(analysis.slopeWeek)
                             )
-                            
                             StatRow(
                                 title: "Overall Trend",
                                 value: analysis.slopeOverall,
                                 description: trendDescription(analysis.slopeOverall)
                             )
                         }
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
+                        .padding(.horizontal)
                     }
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(10)
+                } else {
+                    Text("Not enough data to calculate trends")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .cornerRadius(10)
+                        .padding(.horizontal)
                 }
-            } else {
-                Text("Not enough data to calculate trends")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-                    .background(Color(.secondarySystemBackground))
-                    .cornerRadius(10)
             }
+            .padding(.vertical)
         }
-        .padding()
     }
     
-    private func generateTrendData() -> [TrendData]? {
+    // MARK: - Chart Data Generation
+    
+    private func generateChartData() -> TrendChartData? {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         
-        // Get start date based on selected period
+        // Get the start date based on selected period
         guard let startDate = calendar.date(byAdding: .day, value: -selectedPeriod.days, to: today) else {
             return nil
         }
         
-        // Get raw day data from sprint store
-        let rawDayData = sprintStore.generateDayDataForRange(startDate: startDate, endDate: today)
+        // Generate day data from sprintStore (assumes your sprintStore provides this method)
+        let dayData = sprintStore.generateDayDataForRange(startDate: startDate, endDate: today)
         
-        // Need at least 4 days of data for trend analysis
-        guard rawDayData.count >= 4 else {
-            return nil
-        }
+        // Filter out days without scores
+        let daysWithScores = dayData.compactMap { day -> DailyScorePoint? in
+            guard let score = day.score else { return nil }
+            return DailyScorePoint(date: day.date, score: score)
+        }.sorted { $0.date < $1.date }
         
-        // Convert to trend data format
-        var trendDataPoints: [TrendData] = []
+        // Need at least two days to calculate trends
+        guard daysWithScores.count >= 2 else { return nil }
         
-        for dayData in rawDayData {
-            if let score = dayData.score {
-                trendDataPoints.append(TrendData(
-                    date: dayData.date,
-                    score: score,
-                    trend4Days: nil,
-                    trendWeek: nil,
-                    trend10Days: nil,
-                    overallTrend: nil
-                ))
-            }
-        }
+        var chartData = TrendChartData(dailyScores: daysWithScores)
         
-        // Sort by date
-        trendDataPoints.sort { $0.date < $1.date }
-        
-        // Calculate trend lines
-        if trendDataPoints.count >= 4 {
-            // Calculate trends
-            let overall = calculateTrendLine(data: trendDataPoints)
-            let last4Days = calculateTrendLine(data: Array(trendDataPoints.suffix(min(4, trendDataPoints.count))))
-            let lastWeek = calculateTrendLine(data: Array(trendDataPoints.suffix(min(7, trendDataPoints.count))))
+        // Calculate overall trend (using linear regression)
+        if let (slope, intercept) = calculateLinearRegression(for: daysWithScores) {
+            let firstDate = daysWithScores.first!.date
+            let lastDate = daysWithScores.last!.date
+            let dayDiff = Double(Calendar.current.dateComponents([.day], from: firstDate, to: lastDate).day ?? 0)
+            let startValue = intercept
+            let endValue = intercept + slope * dayDiff
             
-            // Apply trend values to data points
-            for i in 0..<trendDataPoints.count {
-                // Overall trend
-                if let overallSlope = overall.slope, let overallIntercept = overall.intercept {
-                    let daysSinceStart = Calendar.current.dateComponents([.day], from: trendDataPoints[0].date, to: trendDataPoints[i].date).day ?? 0
-                    trendDataPoints[i].overallTrend = overallIntercept + overallSlope * Double(daysSinceStart)
-                }
-                
-                // Only add 4-day and weekly trends to their respective periods
-                if i >= trendDataPoints.count - 4 {
-                    if let slope4Day = last4Days.slope, let intercept4Day = last4Days.intercept {
-                        let daysSince = Calendar.current.dateComponents([.day], from: trendDataPoints[trendDataPoints.count - 4].date, to: trendDataPoints[i].date).day ?? 0
-                        trendDataPoints[i].trend4Days = intercept4Day + slope4Day * Double(daysSince)
-                    }
-                }
-                
-                if i >= trendDataPoints.count - 7 {
-                    if let slopeWeek = lastWeek.slope, let interceptWeek = lastWeek.intercept {
-                        let daysSince = Calendar.current.dateComponents([.day], from: trendDataPoints[max(0, trendDataPoints.count - 7)].date, to: trendDataPoints[i].date).day ?? 0
-                        trendDataPoints[i].trendWeek = interceptWeek + slopeWeek * Double(daysSince)
-                    }
-                }
+            chartData.overallTrend = [
+                TrendLinePoint(date: firstDate, value: max(0, min(1, startValue))),
+                TrendLinePoint(date: lastDate, value: max(0, min(1, endValue)))
+            ]
+        }
+        
+        // Calculate weekly trend (last 7 days)
+        if daysWithScores.count >= 7 {
+            let weekData = Array(daysWithScores.suffix(7))
+            if let (slope, intercept) = calculateLinearRegression(for: weekData) {
+                let firstDate = weekData.first!.date
+                let lastDate = weekData.last!.date
+                let startValue = intercept
+                let endValue = intercept + slope * 6.0  // 6-day span
+                chartData.weeklyTrend = [
+                    TrendLinePoint(date: firstDate, value: max(0, min(1, startValue))),
+                    TrendLinePoint(date: lastDate, value: max(0, min(1, endValue)))
+                ]
             }
         }
         
-        return trendDataPoints
+        // Calculate 4-day trend (last 4 days)
+        if daysWithScores.count >= 4 {
+            let fourDayData = Array(daysWithScores.suffix(4))
+            if let (slope, intercept) = calculateLinearRegression(for: fourDayData) {
+                let firstDate = fourDayData.first!.date
+                let lastDate = fourDayData.last!.date
+                let startValue = intercept
+                let endValue = intercept + slope * 3.0  // 3-day span
+                chartData.fourDayTrend = [
+                    TrendLinePoint(date: firstDate, value: max(0, min(1, startValue))),
+                    TrendLinePoint(date: lastDate, value: max(0, min(1, endValue)))
+                ]
+            }
+        }
+        
+        return chartData
     }
     
-    // Calculate linear regression for trend line
-    private func calculateTrendLine(data: [TrendData]) -> (slope: Double?, intercept: Double?) {
-        guard data.count >= 2 else {
-            return (nil, nil)
-        }
+    // MARK: - Linear Regression Calculation
+    
+    private func calculateLinearRegression(for points: [DailyScorePoint]) -> (slope: Double, intercept: Double)? {
+        guard points.count >= 2 else { return nil }
         
-        let n = Double(data.count)
+        let calendar = Calendar.current
+        let n = Double(points.count)
+        let firstDate = points.first!.date
+        
         var sumX: Double = 0
         var sumY: Double = 0
         var sumXY: Double = 0
         var sumX2: Double = 0
         
-        // Convert dates to day numbers (0, 1, 2, etc.)
-        let startDate = data[0].date
-        let calendar = Calendar.current
-        
-        for (i, point) in data.enumerated() {
-            let x = Double(calendar.dateComponents([.day], from: startDate, to: point.date).day ?? i)
+        for point in points {
+            let dayDiff = Double(calendar.dateComponents([.day], from: firstDate, to: point.date).day ?? 0)
+            let x = dayDiff
             let y = point.score
             
             sumX += x
@@ -265,11 +334,8 @@ struct TrendAnalysisView: View {
             sumX2 += x * x
         }
         
-        // Calculate slope and intercept
         let denominator = n * sumX2 - sumX * sumX
-        if denominator == 0 {
-            return (nil, nil)
-        }
+        if abs(denominator) < 0.0001 { return nil }
         
         let slope = (n * sumXY - sumX * sumY) / denominator
         let intercept = (sumY - slope * sumX) / n
@@ -277,29 +343,46 @@ struct TrendAnalysisView: View {
         return (slope, intercept)
     }
     
-    // Analyze trends and return slope values
-    private func analyzeTrends(_ data: [TrendData]) -> (slope4Day: Double, slopeWeek: Double, slopeOverall: Double)? {
-        guard data.count >= 7 else {
-            return nil
+    // MARK: - Trend Analysis
+    
+    private func analyzeTrends(_ chartData: TrendChartData) -> (slope4Day: Double, slopeWeek: Double, slopeOverall: Double)? {
+        var slope4Day: Double = 0
+        var slopeWeek: Double = 0
+        var slopeOverall: Double = 0
+        
+        guard chartData.overallTrend.count >= 2 else { return nil }
+        
+        let overallPoints = chartData.overallTrend
+        let overallStartValue = overallPoints[0].value
+        let overallEndValue = overallPoints[1].value
+        let overallDays = Double(Calendar.current.dateComponents([.day], from: overallPoints[0].date, to: overallPoints[1].date).day ?? 1)
+        slopeOverall = (overallEndValue - overallStartValue) / overallDays
+        
+        if chartData.weeklyTrend.count >= 2 {
+            let weekPoints = chartData.weeklyTrend
+            let weekStartValue = weekPoints[0].value
+            let weekEndValue = weekPoints[1].value
+            let weekDays = Double(Calendar.current.dateComponents([.day], from: weekPoints[0].date, to: weekPoints[1].date).day ?? 1)
+            slopeWeek = (weekEndValue - weekStartValue) / weekDays
+        } else {
+            slopeWeek = slopeOverall
         }
         
-        let last4Days = Array(data.suffix(min(4, data.count)))
-        let lastWeek = Array(data.suffix(min(7, data.count)))
-        
-        let overall = calculateTrendLine(data: data)
-        let last4 = calculateTrendLine(data: last4Days)
-        let week = calculateTrendLine(data: lastWeek)
-        
-        guard let slopeOverall = overall.slope,
-              let slope4Day = last4.slope,
-              let slopeWeek = week.slope else {
-            return nil
+        if chartData.fourDayTrend.count >= 2 {
+            let fourDayPoints = chartData.fourDayTrend
+            let fourDayStartValue = fourDayPoints[0].value
+            let fourDayEndValue = fourDayPoints[1].value
+            let fourDayDays = Double(Calendar.current.dateComponents([.day], from: fourDayPoints[0].date, to: fourDayPoints[1].date).day ?? 1)
+            slope4Day = (fourDayEndValue - fourDayStartValue) / fourDayDays
+        } else {
+            slope4Day = slopeWeek
         }
         
         return (slope4Day, slopeWeek, slopeOverall)
     }
     
-    // Helper to provide text description of trend
+    // MARK: - Trend Description Helper
+    
     private func trendDescription(_ slope: Double) -> String {
         if slope > 0.02 {
             return "Strong positive trend"
@@ -315,7 +398,26 @@ struct TrendAnalysisView: View {
     }
 }
 
-// Stat row component
+// MARK: - Legend Item
+
+struct LegendItem: View {
+    let color: Color
+    let label: String
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Rectangle()
+                .fill(color)
+                .frame(width: 20, height: 3)
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+// MARK: - Stat Row Component
+
 struct StatRow: View {
     let title: String
     let value: Double
@@ -364,3 +466,16 @@ struct StatRow: View {
         }
     }
 }
+
+#if DEBUG
+@available(iOS 16.0, *)
+struct TrendAnalysisView_Previews: PreviewProvider {
+    static var previews: some View {
+        let sprintStore = SprintStore() // Initialize with sample data as needed
+        return TrendAnalysisView()
+            .environmentObject(sprintStore)
+            .previewDevice("iPhone 14 Pro")
+            .previewDisplayName("Trend Analysis Preview")
+    }
+}
+#endif

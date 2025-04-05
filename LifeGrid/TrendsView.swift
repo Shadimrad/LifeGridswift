@@ -150,24 +150,24 @@ struct TrendsView: View {
                             trendsChart
                         }
                         
-                        // Heat Map for the selected period
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Activity Overview")
-                                .font(.headline)
-                                .padding(.horizontal)
-                            
-                            // Use the class-level namespace directly - FIX
-                            HeatMapView(
-                                dayData: dayDataArray,
-                                zoomedDay: .constant(nil),
-                                animationNamespace: animationNamespace // Use the class-level namespace
-                            )
-                            .frame(height: 200)
-                        }
-                        .padding()
-                        .background(Color(.systemBackground))
-                        .cornerRadius(12)
-                        .shadow(color: .gray.opacity(0.2), radius: 5, x: 0, y: 2)
+//                        // Heat Map for the selected period
+//                        VStack(alignment: .leading, spacing: 8) {
+//                            Text("Activity Overview")
+//                                .font(.headline)
+//                                .padding(.horizontal)
+//                            
+//                            // Use the class-level namespace directly - FIX
+//                            HeatMapView(
+//                                dayData: dayDataArray,
+//                                zoomedDay: .constant(nil),
+//                                animationNamespace: animationNamespace // Use the class-level namespace
+//                            )
+//                            .frame(height: 200)
+//                        }
+//                        .padding()
+//                        .background(Color(.systemBackground))
+//                        .cornerRadius(12)
+//                        .shadow(color: .gray.opacity(0.2), radius: 5, x: 0, y: 2)
                     }
                     .padding()
                 }

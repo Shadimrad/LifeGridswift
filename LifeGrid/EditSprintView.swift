@@ -5,6 +5,7 @@
 //  Created by shaqayeq Rad on 2/28/25.
 //
 import SwiftUI
+import SwiftUI
 
 struct EditSprintView: View {
     @Environment(\.dismiss) var dismiss
@@ -16,6 +17,7 @@ struct EditSprintView: View {
     @State private var goals: [Goal]
     @State private var showingAddGoal = false
     @State private var editingGoalIndex: Int? = nil
+    @State private var showWeightWarning = false  // New state for warning
     
     private let originalSprint: Sprint
     
@@ -25,6 +27,16 @@ struct EditSprintView: View {
         _startDate = State(initialValue: sprint.startDate)
         _endDate = State(initialValue: sprint.endDate)
         _goals = State(initialValue: sprint.goals)
+    }
+    
+    // Calculate the total weight of all goals
+    private var totalWeight: Double {
+        goals.reduce(0) { $0 + $1.weight }
+    }
+    
+    // Check that total weight is at most 100%
+    private var isWeightValid: Bool {
+        totalWeight <= 1.0
     }
     
     var body: some View {
@@ -68,10 +80,20 @@ struct EditSprintView: View {
                 
                 Section {
                     Button("Save Changes") {
-                        saveChanges()
+                        if isWeightValid {
+                            saveChanges()
+                        } else {
+                            showWeightWarning = true
+                        }
                     }
+                    .disabled(sprintName.isEmpty || goals.isEmpty)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .foregroundColor(.blue)
+                    .foregroundColor((sprintName.isEmpty || goals.isEmpty) ? .gray : (isWeightValid ? .blue : .red))
+                    .alert("Weight Limit Exceeded", isPresented: $showWeightWarning) {
+                        Button("OK", role: .cancel) { }
+                    } message: {
+                        Text("The total weight of all goals cannot exceed 100%. Current total: \(Int(totalWeight * 100))%")
+                    }
                 }
             }
             .navigationTitle("Edit Sprint")
@@ -85,13 +107,13 @@ struct EditSprintView: View {
             }
             .sheet(isPresented: $showingAddGoal) {
                 if let index = editingGoalIndex {
-                    // Edit existing goal
+                    // Edit an existing goal
                     EditGoalView(goal: goals[index]) { updatedGoal in
                         goals[index] = updatedGoal
                     }
                 } else {
-                    // Add new goal
-                    AddGoalView { newGoal in
+                    // Add a new goal – pass in the current total weight for feedback
+                    AddGoalView(currentTotalWeight: totalWeight) { newGoal in
                         goals.append(newGoal)
                     }
                 }
@@ -117,62 +139,12 @@ struct EditSprintView: View {
     }
 }
 
-// EditGoalView for updating existing goals
-struct EditGoalView: View {
-    @Environment(\.dismiss) var dismiss
-    @State private var goalTitle: String
-    @State private var targetHours: String
-    @State private var weight: String
-    
-    private let originalGoal: Goal
-    var onSave: (Goal) -> Void
-    
-    init(goal: Goal, onSave: @escaping (Goal) -> Void) {
-        self.originalGoal = goal
-        self.onSave = onSave
-        
-        _goalTitle = State(initialValue: goal.title)
-        _targetHours = State(initialValue: String(format: "%.1f", goal.targetHours))
-        _weight = State(initialValue: String(Int(goal.weight * 100)))
-    }
-    
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section(header: Text("Goal Title")) {
-                    TextField("Enter goal title", text: $goalTitle)
-                }
-                Section(header: Text("Target Hours")) {
-                    TextField("e.g., 2.0", text: $targetHours)
-                        .keyboardType(.decimalPad)
-                }
-                Section(header: Text("Weight (%)")) {
-                    TextField("e.g., 40", text: $weight)
-                        .keyboardType(.numberPad)
-                }
-            }
-            .navigationTitle("Edit Goal")
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if let target = Double(targetHours), let weightValue = Double(weight) {
-                            let updatedGoal = Goal(
-                                id: originalGoal.id,
-                                title: goalTitle,
-                                targetHours: target,
-                                weight: weightValue / 100
-                            )
-                            onSave(updatedGoal)
-                            dismiss()
-                        }
-                    }
-                }
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
+
+// Mock Sprint separate from store, pulled from mock store
+
+let mockSprint = SprintStore.mock.sprints.first!
+
+#Preview {
+    EditSprintView(sprint: mockSprint)
+        .environmentObject(SprintStore.mock)
 }

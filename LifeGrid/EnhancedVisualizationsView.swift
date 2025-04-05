@@ -276,7 +276,7 @@ struct EnhancedVisualizationsView: View {
         
         // Streak calculation
         var currentStreak = 0
-        var datesToCheck = (0...daysInRange).compactMap { days in
+        let datesToCheck = (0...daysInRange).compactMap { days in
             calendar.date(byAdding: .day, value: -days, to: today)
         }
         
@@ -471,7 +471,7 @@ struct DailyScoresChart: View {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         
-        guard let startDate = calendar.date(byAdding: .day, value: -dateRange.days, to: today) else {
+        guard calendar.date(byAdding: .day, value: -dateRange.days, to: today) != nil else {
             return []
         }
         
@@ -630,15 +630,15 @@ struct DailyScoresChart: View {
         let startX = 0.0
         let endX = Double(dateRange.days)
         
+        let firstDate = chartData.first!.date
+        let lastDate = calendar.date(byAdding: .day, value: dateRange.days, to: firstDate) ?? firstDate
+
         let startY = intercept + slope * startX
         let endY = intercept + slope * endX
-        
+
         return [
-            DailyScoreData(date: startDate, score: max(0, min(1, startY))),
-            DailyScoreData(
-                date: calendar.date(byAdding: .day, value: dateRange.days, to: startDate) ?? startDate,
-                score: max(0, min(1, endY))
-            )
+            DailyScoreData(date: firstDate, score: max(0, min(1, startY))),
+            DailyScoreData(date: lastDate, score: max(0, min(1, endY)))
         ]
     }
 }
@@ -1123,3 +1123,16 @@ struct WeeklyData: Identifiable {
     let averageScore: Double
 }
 
+
+extension SprintStore {
+    static var mock: SprintStore {
+        let store = SprintStore()
+        // TODO populate with fake sprints/goals/efforts for realistic preview
+        return store
+    }
+}
+
+#Preview {
+    EnhancedVisualizationsView()
+        .environmentObject(SprintStore.mock) // Replace with your real or mock store
+}

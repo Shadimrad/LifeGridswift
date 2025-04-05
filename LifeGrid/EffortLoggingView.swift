@@ -18,11 +18,11 @@ struct ImprovedEffortLoggingView: View {
     @State private var hoursInput: String = ""
     @State private var showingTimeSelector = false
     @State private var startTime: Date = Date()
-    @State private var endTime: Date = Date().addingTimeInterval(3600) // One hour later by default
+    @State private var endTime: Date = Date().addingTimeInterval(3600) // One hour later
     @State private var useTimeSelector = false
     @State private var notes: String = ""
     
-    // Determine if effort can be saved
+    // Validate that a goal is selected and hours are entered
     private var canSave: Bool {
         selectedGoalId != nil && (
             (useTimeSelector && endTime > startTime) ||
@@ -30,7 +30,7 @@ struct ImprovedEffortLoggingView: View {
         )
     }
     
-    // Calculate hours from time selection
+    // Calculate hours based on time selector
     private var hoursFromTimeSelection: Double {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.minute], from: startTime, to: endTime)
@@ -38,15 +38,27 @@ struct ImprovedEffortLoggingView: View {
         return Double(minutes) / 60.0
     }
     
-    // Get efforts logged today
+    // Already logged efforts for the selected day
     private var todaysEfforts: [Effort] {
         sprintStore.effortsForDate(date)
+    }
+    
+    // Total hours for the day including the new/edited entry
+    private var totalHoursForSelectedDay: Double {
+        let existingEfforts = sprintStore.effortsForDate(date)
+        let existingHours = existingEfforts.reduce(0.0) { $0 + $1.hours }
+        let newHours = useTimeSelector ? hoursFromTimeSelection : (Double(hoursInput) ?? 0)
+        return existingHours + newHours
+    }
+    
+    // Check if logging would exceed 24 hours
+    private var wouldExceedDailyLimit: Bool {
+        totalHoursForSelectedDay > 24.0
     }
     
     var body: some View {
         NavigationStack {
             Form {
-                // Date section (only shown if not logging for today)
                 if !Calendar.current.isDateInToday(date) {
                     Section {
                         HStack {
@@ -60,7 +72,6 @@ struct ImprovedEffortLoggingView: View {
                     }
                 }
                 
-                // Goal selection
                 Section {
                     ForEach(sprint.goals) { goal in
                         Button {
@@ -89,7 +100,6 @@ struct ImprovedEffortLoggingView: View {
                     Text("Select Goal")
                 }
                 
-                // Hours input section
                 Section {
                     Toggle("Use time selector", isOn: $useTimeSelector)
                     
@@ -115,7 +125,6 @@ struct ImprovedEffortLoggingView: View {
                     Text("Time Spent")
                 }
                 
-                // Optional notes
                 Section {
                     TextField("Add any notes or details", text: $notes, axis: .vertical)
                         .lineLimit(3...5)
@@ -123,7 +132,6 @@ struct ImprovedEffortLoggingView: View {
                     Text("Notes (Optional)")
                 }
                 
-                // Today's logged efforts section
                 if !todaysEfforts.isEmpty {
                     Section {
                         ForEach(todaysEfforts) { effort in
@@ -131,14 +139,11 @@ struct ImprovedEffortLoggingView: View {
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text(goalTitle)
-                                    
                                     Text("Logged at \(effort.date, style: .time)")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
-                                
                                 Spacer()
-                                
                                 Text("\(String(format: "%.1f", effort.hours)) hrs")
                                     .fontWeight(.semibold)
                             }
@@ -148,7 +153,6 @@ struct ImprovedEffortLoggingView: View {
                     }
                 }
                 
-                // Save button
                 Section {
                     Button(action: saveEffort) {
                         HStack {
@@ -158,7 +162,15 @@ struct ImprovedEffortLoggingView: View {
                             Spacer()
                         }
                     }
-                    .disabled(!canSave)
+                    .disabled(!canSave || wouldExceedDailyLimit)
+                    .background(wouldExceedDailyLimit ? Color.red.opacity(0.2) : Color.clear)
+                    
+                    if wouldExceedDailyLimit {
+                        Text("Warning: Total effort for this day would exceed 24 hours (\(String(format: "%.1f", totalHoursForSelectedDay)) hrs)")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.top, 4)
+                    }
                 }
             }
             .navigationTitle("Log Effort")
@@ -173,7 +185,6 @@ struct ImprovedEffortLoggingView: View {
         }
     }
     
-    // Save the effort
     private func saveEffort() {
         guard let goalId = selectedGoalId else { return }
         
@@ -186,14 +197,10 @@ struct ImprovedEffortLoggingView: View {
             hours: hours
         )
         
-        // Add effort to the store
         sprintStore.addEffort(effort)
-        
-        // Dismiss the sheet
         dismiss()
     }
     
-    // Helper to get the goal title for an effort
     private func getGoalTitle(for goalId: UUID) -> String {
         if let goal = sprint.goals.first(where: { $0.id == goalId }) {
             return goal.title

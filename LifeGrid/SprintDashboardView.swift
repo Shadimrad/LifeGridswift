@@ -319,3 +319,43 @@ struct ProgressBar: View {
         }
     }
 }
+
+
+extension SprintStore {
+    static var mockWithSprint: SprintStore {
+        let store = SprintStore()
+        
+        let goal1 = Goal(id: UUID(), title: "Code", targetHours: 2, weight: 0.6)
+        let goal2 = Goal(id: UUID(), title: "Read", targetHours: 1.5, weight: 0.4)
+        
+        let sprint = Sprint(
+            id: UUID(),
+            name: "Productivity Sprint",
+            startDate: Calendar.current.date(byAdding: .day, value: -10, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 10, to: Date())!,
+            goals: [goal1, goal2]
+        )
+        
+        store.sprints = [sprint]
+        
+        for i in 0..<10 {
+            let date = Calendar.current.date(byAdding: .day, value: -i, to: Date())!
+            store.efforts.append(contentsOf: [
+                Effort(id: UUID(), goalId: goal1.id, date: date, hours: Double.random(in: 1...2.5)),
+                Effort(id: UUID(), goalId: goal2.id, date: date, hours: Double.random(in: 0.5...1.5))
+            ])
+        }
+        
+        return store
+    }
+
+    static var mockSprint: Sprint {
+        mockWithSprint.sprints.first!
+    }
+}
+
+
+#Preview("Sprint Dashboard") {
+    SprintDashboardView(sprint: SprintStore.mockSprint)
+        .environmentObject(SprintStore.mockWithSprint)
+}

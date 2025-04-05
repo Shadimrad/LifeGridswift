@@ -93,3 +93,29 @@ struct HeatMapView: View {
         }
     }
 }
+
+
+struct HeatMapPreviewWrapper: View {
+    @State private var zoomedDay: DayData? = nil
+    @Namespace private var animation
+    
+    private var sampleData: [DayData] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return (0..<30).map { offset in
+            DayData(
+                date: calendar.date(byAdding: .day, value: -offset, to: today)!,
+                score: Double.random(in: 0...1)
+            )
+        }
+    }
+
+    var body: some View {
+        HeatMapView(dayData: sampleData, zoomedDay: $zoomedDay, animationNamespace: animation)
+    }
+}
+
+
+#Preview {
+    HeatMapPreviewWrapper()
+}

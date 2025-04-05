@@ -17,106 +17,36 @@ struct AccountView: View {
     
     var body: some View {
         Form {
-            // User Profile Section
-            Section(header: Text("User Profile")) {
-                if userSettings.isLoggedIn {
-                    HStack {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 50))
-                            .foregroundColor(.blue)
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(userSettings.userName)
-                                .font(.headline)
-                            Text(userSettings.userEmail)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                            Text("Age: \(userSettings.currentAge)")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            showingEditProfile = true
-                        }) {
-                            Image(systemName: "pencil")
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                } else {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Not logged in")
-                            .font(.headline)
-                        
-                        Button("Sign up / Login") {
-                            navigateToSignup = true
-                        }
-                        .buttonStyle(.borderedProminent)
-                    }
-                    .padding(.vertical, 8)
-                }
-            }
-            
-            // Life Preferences
-            Section(header: Text("Life Preferences")) {
-                Stepper("Current Age: \(userSettings.currentAge)",
-                        value: $userSettings.currentAge,
-                        in: 1...100)
-                
-                Stepper("Target Age: \(userSettings.targetAge)",
-                        value: $userSettings.targetAge,
-                        in: userSettings.currentAge...120)
-                
-                Stepper("Years to view: \(userSettings.yearsToView)",
-                        value: $userSettings.yearsToView,
-                        in: 1...70)
-            }
             
             // Sprint Management
             Section(header: Text("Progress & Analysis")) {
-                NavigationLink("Manage Sprints", destination: SprintsView()
-                    .environmentObject(sprintStore))
-                
-                NavigationLink("Manage All Efforts", destination: EffortListView()
-                    .environmentObject(sprintStore))
-                
                 NavigationLink("View Analytics", destination: TrendsNavigationView()
                     .environmentObject(sprintStore))
                 
-                NavigationLink("Life Grid View", destination: LifetimeGridView()
+                
+                
+
+                NavigationLink("Sprint Timeline", destination: SprintGridTimelineView()
                     .environmentObject(userSettings)
                     .environmentObject(sprintStore))
             }
             
             // Data Management
             Section(header: Text("Data Management")) {
-                Button("Export Data") {
-                    exportUserData()
-                }
-                
-                Button("Import Data") {
-                    importUserData()
-                }
+
                 
                 NavigationLink("Manage Efforts", destination: EffortListView()
                     .environmentObject(sprintStore))
+                
+            
+                NavigationLink("Manage Sprints", destination: SprintsView()
+                    .environmentObject(sprintStore))
+                
                 
                 Button("Delete All Data") {
                     showingDeleteConfirmation = true
                 }
                 .foregroundColor(.red)
-            }
-            
-            // Sprint Management
-            Section(header: Text("Progress & Analysis")) {
-                NavigationLink("Manage Sprints", destination: SprintsView()
-                    .environmentObject(sprintStore))
-                
-                NavigationLink("View Analytics", destination: TrendsNavigationView()
-                    .environmentObject(sprintStore))
             }
             
             // Account Actions

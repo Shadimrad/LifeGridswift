@@ -2,7 +2,7 @@
 //  UserSignupView.swift
 //  LifeGrid
 //
-//  Created by shaqayeq Rad on 2/28/25.
+//  Created by shaqayeq Rad on 2/26/25.
 //
 
 import SwiftUI
@@ -13,8 +13,6 @@ struct UserSignupView: View {
     
     @State private var name: String = ""
     @State private var email: String = ""
-    @State private var birthDate = Calendar.current.date(byAdding: .year, value: -25, to: Date()) ?? Date()
-    @State private var targetAge: Int = 85
     @State private var showingPreview = false
     
     var body: some View {
@@ -23,11 +21,11 @@ struct UserSignupView: View {
                 VStack(spacing: 24) {
                     // Header
                     VStack(spacing: 4) {
-                        Text("Welcome to LifeGrid")
+                        Text("Welcome to SprintGrid")
                             .font(.largeTitle)
                             .fontWeight(.bold)
                         
-                        Text("Start tracking your life's journey")
+                        Text("Track your progress sprint by sprint")
                             .foregroundColor(.secondary)
                     }
                     .padding(.bottom, 16)
@@ -57,42 +55,6 @@ struct UserSignupView: View {
                                 .background(Color(.secondarySystemBackground))
                                 .cornerRadius(10)
                         }
-                        
-                        // Date of birth
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Date of Birth")
-                                .font(.headline)
-                            
-                            DatePicker(
-                                "Select your birth date",
-                                selection: $birthDate,
-                                displayedComponents: .date
-                            )
-                            .datePickerStyle(.wheel)
-                            .labelsHidden()
-                            .frame(maxHeight: 180)
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(10)
-                        }
-                        
-                        // Target age
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("How long do you want to live? (in years)")
-                                .font(.headline)
-                            
-                            HStack {
-                                Text("\(targetAge) years")
-                                    .frame(width: 100, alignment: .leading)
-                                
-                                Slider(value: Binding(
-                                    get: { Double(targetAge) },
-                                    set: { targetAge = Int($0) }
-                                ), in: 50...120, step: 1)
-                            }
-                            .padding()
-                            .background(Color(.secondarySystemBackground))
-                            .cornerRadius(10)
-                        }
                     }
                     .padding(.horizontal)
                     
@@ -100,7 +62,7 @@ struct UserSignupView: View {
                     Button {
                         showingPreview = true
                     } label: {
-                        Text("Preview Life Grid")
+                        Text("Preview Sprint Grid")
                             .font(.headline)
                             .foregroundColor(.white)
                             .padding()
@@ -110,10 +72,7 @@ struct UserSignupView: View {
                     }
                     .padding(.horizontal)
                     .sheet(isPresented: $showingPreview) {
-                        LifeGridPreview(
-                            birthDate: birthDate,
-                            targetAge: targetAge
-                        )
+                        SprintGridPreview()
                     }
                     
                     // Get started button
@@ -143,53 +102,49 @@ struct UserSignupView: View {
     
     // Save user settings
     private func saveUserSettings() {
-        // Calculate current age
-        let calendar = Calendar.current
-        let ageComponents = calendar.dateComponents([.year], from: birthDate, to: Date())
-        let currentAge = ageComponents.year ?? 0
-        
-        // Save settings
-        userSettings.currentAge = currentAge
-        userSettings.targetAge = targetAge
+        // Save settings without age-related data
         userSettings.isFirstLaunch = false
         
         // Save name and email
-        UserDefaults.standard.set(name, forKey: "userName")
-        UserDefaults.standard.set(email, forKey: "userEmail")
-        UserDefaults.standard.set(birthDate, forKey: "userBirthDate")
+        userSettings.userName = name
+        userSettings.userEmail = email
+        userSettings.saveSettings()
         
         // Dismiss the view
         dismiss()
     }
 }
 
-struct LifeGridPreview: View {
-    let birthDate: Date
-    let targetAge: Int
+// Sprint Grid Preview
+struct SprintGridPreview: View {
     @Environment(\.dismiss) var dismiss
     
-    // Calculate current age
-    private var currentAge: Int {
-        let calendar = Calendar.current
-        let ageComponents = calendar.dateComponents([.year], from: birthDate, to: Date())
-        return ageComponents.year ?? 0
-    }
+    // Sample sprint data for demo
+    let sampleSprint = Sprint(
+        name: "Sample Sprint",
+        startDate: Date(),
+        endDate: Calendar.current.date(byAdding: .day, value: 14, to: Date())!,
+        goals: [
+            Goal(title: "Coding", targetHours: 2.0, weight: 0.4),
+            Goal(title: "Exercise", targetHours: 1.0, weight: 0.3),
+            Goal(title: "Reading", targetHours: 1.0, weight: 0.3)
+        ]
+    )
     
-    // Generate grid data
-    private var gridData: [WeekData] {
-        var result: [WeekData] = []
+    // Generate sample data for grid
+    private var gridData: [DayData] {
+        var result: [DayData] = []
         
-        // Calculate total weeks
-        let totalWeeks = targetAge * 52
-        
-        // Calculate weeks lived so far
+        // Generate 14 days of sample data
         let calendar = Calendar.current
-        let weeksLived = calendar.dateComponents([.weekOfYear], from: birthDate, to: Date()).weekOfYear ?? 0
+        let startDate = calendar.startOfDay(for: Date())
         
-        // Generate week data
-        for i in 0..<totalWeeks {
-            let isLived = i < weeksLived
-            result.append(WeekData(id: i, isLived: isLived))
+        for i in 0..<14 {
+            if let day = calendar.date(byAdding: .day, value: i, to: startDate) {
+                // Random score for sample data
+                let score = i < 5 ? Double.random(in: 0.3...1.0) : nil
+                result.append(DayData(date: day, score: score))
+            }
         }
         
         return result
@@ -199,17 +154,14 @@ struct LifeGridPreview: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    // Header with stats
+                    // Header with sprint info
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Your Life in Weeks")
+                        Text("Sample Sprint View")
                             .font(.title)
                             .fontWeight(.bold)
                         
-                        Text("Age \(currentAge) to \(targetAge)")
+                        Text("\(sampleSprint.startDate, style: .date) to \(sampleSprint.endDate, style: .date)")
                             .foregroundColor(.secondary)
-                        
-                        // Calculate progress
-                        let progress = Double(currentAge) / Double(targetAge)
                         
                         // Progress bar
                         GeometryReader { geometry in
@@ -225,7 +177,7 @@ struct LifeGridPreview: View {
                                         startPoint: .leading,
                                         endPoint: .trailing
                                     ))
-                                    .frame(width: geometry.size.width * CGFloat(progress), height: 8)
+                                    .frame(width: geometry.size.width * 0.35, height: 8)
                                     .cornerRadius(4)
                             }
                         }
@@ -235,10 +187,10 @@ struct LifeGridPreview: View {
                         // Stats row
                         HStack {
                             VStack {
-                                Text("\(currentAge)")
+                                Text("5")
                                     .font(.title3)
                                     .fontWeight(.bold)
-                                Text("Years Lived")
+                                Text("Days Logged")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -246,10 +198,10 @@ struct LifeGridPreview: View {
                             Spacer()
                             
                             VStack {
-                                Text("\(targetAge - currentAge)")
+                                Text("9")
                                     .font(.title3)
                                     .fontWeight(.bold)
-                                Text("Years Remaining")
+                                Text("Days Remaining")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -257,7 +209,7 @@ struct LifeGridPreview: View {
                             Spacer()
                             
                             VStack {
-                                Text("\(Int(progress * 100))%")
+                                Text("35%")
                                     .font(.title3)
                                     .fontWeight(.bold)
                                 Text("Completed")
@@ -272,22 +224,24 @@ struct LifeGridPreview: View {
                     
                     // Grid visualization
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Life Grid")
+                        Text("Sprint Grid")
                             .font(.headline)
                         
-                        Text("Each box represents one week of your life")
+                        Text("Each box represents one day of your sprint")
                             .font(.caption)
                             .foregroundColor(.secondary)
                         
                         // Grid layout
-                        let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 52)
+                        let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 7)
                         
-                        LazyVGrid(columns: columns, spacing: 2) {
-                            ForEach(gridData) { week in
+                        LazyVGrid(columns: columns, spacing: 8) {
+                            ForEach(gridData) { day in
                                 Rectangle()
-                                    .fill(getWeekColor(week))
-                                    .frame(height: 8)
-                                    .cornerRadius(1)
+                                    .fill(day.score != nil ?
+                                          Color.green.opacity(0.7 * (day.score ?? 0)) :
+                                          Color.gray.opacity(0.2))
+                                    .frame(height: 40)
+                                    .cornerRadius(6)
                             }
                         }
                         .padding(.top, 8)
@@ -299,7 +253,7 @@ struct LifeGridPreview: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Life Preview")
+            .navigationTitle("Preview")
             .toolbar {
                 Button("Close") {
                     dismiss()
@@ -307,21 +261,6 @@ struct LifeGridPreview: View {
             }
         }
     }
-    
-    // Get color for week box
-    private func getWeekColor(_ week: WeekData) -> Color {
-        if week.isLived {
-            return Color.green.opacity(0.7)
-        } else {
-            return Color.gray.opacity(0.2)
-        }
-    }
-}
-
-// Week data model
-struct WeekData: Identifiable {
-    let id: Int
-    let isLived: Bool
 }
 
 struct UserSignupView_Previews: PreviewProvider {

@@ -1,14 +1,13 @@
 //
-//  LifeGridApp.swift
+//  LifeGridApp.swift (Renamed to SprintGridApp)
 //  LifeGrid
-//
-//  Created by shaqayeq Rad on 2/26/25.
+//  (Modified to remove age-based UI and focus on sprints)
 //
 
 import SwiftUI
 
 @main
-struct LifeGridApp: App {
+struct SprintGridApp: App {
     @StateObject var userSettings = UserSettings()
     @StateObject var sprintStore = SprintStore()
     
@@ -21,7 +20,7 @@ struct LifeGridApp: App {
             } else {
                 // Use TabView to provide navigation between different views
                 TabView {
-                    // Daily Grid View - shows sprints
+                    // Sprint View - shows currently active sprint
                     NavigationStack {
                         SprintGridMainView()
                             .environmentObject(userSettings)
@@ -31,14 +30,14 @@ struct LifeGridApp: App {
                         Label("Sprint View", systemImage: "chart.bar.fill")
                     }
                     
-                    // Life Grid View - shows full lifespan
+                    // Timeline View - shows all sprints in a timeline
                     NavigationStack {
-                        LifetimeGridView()
+                        SprintGridTimelineView()
                             .environmentObject(userSettings)
                             .environmentObject(sprintStore)
                     }
                     .tabItem {
-                        Label("Life Grid", systemImage: "calendar")
+                        Label("Timeline", systemImage: "calendar")
                     }
                     
                     // Sprints Management
@@ -63,4 +62,60 @@ struct LifeGridApp: App {
             }
         }
     }
+}
+
+
+extension UserSettings {
+    static var mockFirstLaunch: UserSettings {
+        let settings = UserSettings()
+        settings.isFirstLaunch = true
+        return settings
+    }
+
+    static var mockReturningUser: UserSettings {
+        let settings = UserSettings()
+        settings.isFirstLaunch = false
+        return settings
+    }
+}
+
+
+#Preview("First Launch") {
+    OnboardingView()
+        .environmentObject(UserSettings.mockFirstLaunch)
+        .environmentObject(SprintStore.mock)
+}
+
+#Preview("Main Tab View") {
+    TabView {
+        NavigationStack {
+            SprintGridMainView()
+        }
+        .tabItem {
+            Label("Sprint View", systemImage: "chart.bar.fill")
+        }
+
+        NavigationStack {
+            SprintGridTimelineView()
+        }
+        .tabItem {
+            Label("Timeline", systemImage: "calendar")
+        }
+
+        NavigationStack {
+            SprintsView()
+        }
+        .tabItem {
+            Label("Sprints", systemImage: "list.bullet")
+        }
+
+        NavigationStack {
+            AccountView()
+        }
+        .tabItem {
+            Label("Settings", systemImage: "gear")
+        }
+    }
+    .environmentObject(UserSettings.mockReturningUser)
+    .environmentObject(SprintStore.mock)
 }

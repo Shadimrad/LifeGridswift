@@ -303,70 +303,67 @@ struct AddSprintView: View {
 // Add Goal View
 struct AddGoalView: View {
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var sprintStore: SprintStore
-    @State private var goalTitle = ""
-    @State private var targetHours = ""
-    @State private var weight = ""
+    @State private var goalTitle: String = ""
+    @State private var targetHours: String = ""
+    @State private var weight: String = ""
     
+    // Optional current total weight passed from the parent view
+    var currentTotalWeight: Double?
     var onSave: (Goal) -> Void
     
     var body: some View {
-        NavigationStack {
-            Form {
-                Section(header: Text("Goal Title")) {
-                    TextField("Enter goal title", text: $goalTitle)
-                }
-                
-                Section(header: Text("Target Hours Per Day")) {
-                    TextField("e.g., 2.0", text: $targetHours)
-                        .keyboardType(.decimalPad)
-                }
-                
-                Section(header: Text("Weight (%)")) {
-                    TextField("e.g., 40", text: $weight)
-                        .keyboardType(.numberPad)
-                    
-                    Text("Weight represents how much this goal contributes to your overall sprint score.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .navigationTitle("Add Goal")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveGoal()
-                    }
-                    .disabled(!isValid)
-                }
-            }
-        }
-    }
-    
-    private var isValid: Bool {
-        !goalTitle.isEmpty &&
-        Double(targetHours) != nil &&
-        Double(weight) != nil
-    }
-    
-    private func saveGoal() {
-        guard isValid else { return }
-        
-        let newGoal = Goal(
-            title: goalTitle,
-            targetHours: Double(targetHours) ?? 0,
-            weight: (Double(weight) ?? 0) / 100 // Convert percentage to decimal
-        )
-        
-        onSave(newGoal)
-        dismiss()
+       NavigationStack {
+          Form {
+              Section(header: Text("Goal Title")) {
+                  TextField("Enter goal title", text: $goalTitle)
+              }
+              Section(header: Text("Target Hours")) {
+                  TextField("e.g., 2.0", text: $targetHours)
+                      .keyboardType(.decimalPad)
+              }
+              Section(header: Text("Weight (%)")) {
+                  TextField("e.g., 40", text: $weight)
+                      .keyboardType(.numberPad)
+                  
+                  if let currentTotalWeight = currentTotalWeight {
+                      let newTotalWeight = (Double(weight) ?? 0) / 100 + currentTotalWeight
+                      Text("Current total: \(Int(currentTotalWeight * 100))%, New total: \(Int(newTotalWeight * 100))%")
+                          .font(.caption)
+                          .foregroundColor(newTotalWeight > 1.0 ? .red : .secondary)
+                  }
+                  
+                  Text("Weight represents how much this goal contributes to your overall sprint score.")
+                      .font(.caption)
+                      .foregroundColor(.secondary)
+              }
+              
+              Section {
+                  Button("Save Goal") {
+                      if let target = Double(targetHours), let weightValue = Double(weight) {
+                          let newGoal = Goal(
+                              id: UUID(),
+                              title: goalTitle,
+                              targetHours: target,
+                              weight: weightValue / 100
+                          )
+                          onSave(newGoal)
+                          dismiss()
+                      }
+                  }
+                  .disabled(goalTitle.isEmpty || targetHours.isEmpty || weight.isEmpty)
+                  .frame(maxWidth: .infinity, alignment: .center)
+              }
+          }
+          .navigationTitle("Add Goal")
+          .navigationBarTitleDisplayMode(.inline)
+          .toolbar {
+              ToolbarItem(placement: .cancellationAction) {
+                  Button("Cancel") {
+                      dismiss()
+                  }
+              }
+          }
+       }
     }
 }
 

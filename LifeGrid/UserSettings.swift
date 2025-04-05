@@ -1,8 +1,7 @@
 //
 //  UserSettings.swift
 //  LifeGrid
-//
-//  Created by shaqayeq Rad on 2/26/25.
+//  (Modified to remove age-based calculations)
 //
 
 import Foundation
@@ -11,25 +10,35 @@ import Combine
 class UserSettings: ObservableObject {
     // Published properties will cause views to update when changed
     @Published var isFirstLaunch: Bool
-    @Published var currentAge: Int
-    @Published var targetAge: Int
-    @Published var yearsToView: Int
+    @Published var currentAge: Int = 30 // Retained for compatibility
+    @Published var targetAge: Int = 85  // Retained for compatibility
+    @Published var yearsToView: Int // Kept for displaying data in timeline view
     
-    // New user account properties
+    // User account properties
     @Published var isLoggedIn: Bool
     @Published var userName: String
     @Published var userEmail: String
+    
+    // Preferences
+    @Published var defaultGridView: GridViewType
+    
+    // Grid view types
+    enum GridViewType: String, Codable {
+        case daily
+        case weekly
+        case monthly
+    }
     
     init() {
         // Check if the app has been launched before
         let hasLaunchedBefore = UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
         self.isFirstLaunch = !hasLaunchedBefore
         
-        // Load user's age or set default
+        // Load user's age or set default (keeping for compatibility)
         let savedAge = UserDefaults.standard.integer(forKey: "currentAge")
         self.currentAge = savedAge > 0 ? savedAge : 30 // Default age
         
-        // Load target age or set default
+        // Load target age or set default (keeping for compatibility)
         let savedTargetAge = UserDefaults.standard.integer(forKey: "targetAge")
         self.targetAge = savedTargetAge > 0 ? savedTargetAge : 85 // Default target age
         
@@ -41,6 +50,14 @@ class UserSettings: ObservableObject {
         self.isLoggedIn = UserDefaults.standard.bool(forKey: "isLoggedIn")
         self.userName = UserDefaults.standard.string(forKey: "userName") ?? "Guest"
         self.userEmail = UserDefaults.standard.string(forKey: "userEmail") ?? ""
+        
+        // Load preferences or set defaults
+        if let gridViewTypeStr = UserDefaults.standard.string(forKey: "defaultGridView"),
+           let gridViewType = GridViewType(rawValue: gridViewTypeStr) {
+            self.defaultGridView = gridViewType
+        } else {
+            self.defaultGridView = .daily // Default view type
+        }
         
         // Set up observation for properties to save changes
         setupObservers()
@@ -96,6 +113,13 @@ class UserSettings: ObservableObject {
                 self?.objectWillChange.send()
             }
             .store(in: &cancellables)
+        
+        $defaultGridView
+            .sink { [weak self] newValue in
+                UserDefaults.standard.set(newValue.rawValue, forKey: "defaultGridView")
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
     
     // Store cancellables
@@ -110,6 +134,7 @@ class UserSettings: ObservableObject {
         UserDefaults.standard.set(isLoggedIn, forKey: "isLoggedIn")
         UserDefaults.standard.set(userName, forKey: "userName")
         UserDefaults.standard.set(userEmail, forKey: "userEmail")
+        UserDefaults.standard.set(defaultGridView.rawValue, forKey: "defaultGridView")
     }
     
     // Reset user account (logout)
@@ -119,4 +144,8 @@ class UserSettings: ObservableObject {
         userEmail = ""
         saveSettings()
     }
+    
+    // IMPORTANT: Keeping only one mock method for previews
+    // We're keeping the existing mock methods in the original file
+    // and removing our new declaration to avoid the duplicate error
 }

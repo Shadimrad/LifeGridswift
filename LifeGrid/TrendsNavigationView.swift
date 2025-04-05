@@ -122,27 +122,27 @@ struct PerformanceView: View {
             }
             .padding(.horizontal)
             
-            // Goal performance chart
-            if #available(iOS 16.0, *) {
-                // For iOS 16 and above, use the goal performance chart from EnhancedVisualizationsView
-                GoalPerformanceSection(sprintStore: sprintStore, selectedSprint: selectedSprint, timeRange: selectedTimeRange)
-            } else {
-                // Fallback for iOS 15
-                SimplifiedGoalPerformanceView(sprintStore: sprintStore, selectedSprint: selectedSprint, selectedTimeRange: selectedTimeRange)
-            }
-            
-            // Activity distribution
-            if #available(iOS 16.0, *) {
-                ActivityDistributionSection(sprintStore: sprintStore, selectedSprint: selectedSprint, timeRange: selectedTimeRange)
-            } else {
-                Text("Enhanced activity distribution requires iOS 16+")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-            }
+//            // Goal performance chart
+//            if #available(iOS 16.0, *) {
+//                // For iOS 16 and above, use the goal performance chart from EnhancedVisualizationsView
+//                GoalPerformanceSection(sprintStore: sprintStore, selectedSprint: selectedSprint, timeRange: selectedTimeRange)
+//            } else {
+//                // Fallback for iOS 15
+//                SimplifiedGoalPerformanceView(sprintStore: sprintStore, selectedSprint: selectedSprint, selectedTimeRange: selectedTimeRange)
+//            }
+//            
+//            // Activity distribution
+//            if #available(iOS 16.0, *) {
+//                ActivityDistributionSection(sprintStore: sprintStore, selectedSprint: selectedSprint, timeRange: selectedTimeRange)
+//            } else {
+//                Text("Enhanced activity distribution requires iOS 16+")
+//                    .foregroundColor(.secondary)
+//                    .frame(maxWidth: .infinity, alignment: .center)
+//                    .padding()
+//                    .background(Color(.systemBackground))
+//                    .cornerRadius(12)
+//                    .padding(.horizontal)
+//            }
             
             // Trend analysis
             TrendAnalysisView()
@@ -288,18 +288,18 @@ struct ComparisonView: View {
     
     var body: some View {
         VStack(spacing: 20) {
-            if #available(iOS 16.0, *) {
-                // Weekly comparison chart from EnhancedVisualizationsView
-                WeeklyComparisonSection(sprintStore: sprintStore)
-            } else {
-                Text("Weekly comparison requires iOS 16+")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding()
-                    .background(Color(.systemBackground))
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-            }
+//            if #available(iOS 16.0, *) {
+//                // Weekly comparison chart from EnhancedVisualizationsView
+//                WeeklyComparisonSection(sprintStore: sprintStore)
+//            } else {
+//                Text("Weekly comparison requires iOS 16+")
+//                    .foregroundColor(.secondary)
+//                    .frame(maxWidth: .infinity, alignment: .center)
+//                    .padding()
+//                    .background(Color(.systemBackground))
+//                    .cornerRadius(12)
+//                    .padding(.horizontal)
+//            }
             
             // Sprint comparison section
             SprintComparisonSection(sprintStore: sprintStore)
@@ -554,3 +554,29 @@ struct TrendStatItem: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
+
+#if DEBUG
+struct TrendsNavigationView_Previews: PreviewProvider {
+    static var previews: some View {
+        // Create a dummy instance of SprintStore.
+        // Optionally, populate it with sample sprints, efforts, goals, etc.
+        let sprintStore = SprintStore()
+        
+        return NavigationView {
+            TrendsNavigationView()
+                .environmentObject(sprintStore)
+        }
+        // You can also preview in both light and dark modes:
+        .preferredColorScheme(.light)
+        .previewDisplayName("Light Mode")
+        
+        // Uncomment the following to preview dark mode as well:
+        // NavigationView {
+        //     TrendsNavigationView()
+        //         .environmentObject(sprintStore)
+        // }
+        // .preferredColorScheme(.dark)
+        // .previewDisplayName("Dark Mode")
+    }
+}
+#endif

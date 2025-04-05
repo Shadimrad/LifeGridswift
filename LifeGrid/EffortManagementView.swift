@@ -23,25 +23,20 @@ struct EditEffortView: View {
     private let effort: Effort
     private let sprint: Sprint
     
-    // Initialize with an existing effort
     init(effort: Effort, sprint: Sprint) {
         self.effort = effort
         self.sprint = sprint
         
-        // Initialize state variables with effort data
         _selectedGoalId = State(initialValue: effort.goalId)
         _hoursInput = State(initialValue: String(format: "%.1f", effort.hours))
         
-        // For time selector, create a reasonable timeframe based on hours
         let calendar = Calendar.current
         _startTime = State(initialValue: effort.date)
         
-        // Calculate end time based on hours logged
         let endTimeComponent = calendar.dateComponents([.hour, .minute], from: effort.date)
         var endHour = endTimeComponent.hour ?? 0
         var endMinute = (endTimeComponent.minute ?? 0) + Int(effort.hours * 60)
         
-        // Adjust for overflow
         while endMinute >= 60 {
             endHour += 1
             endMinute -= 60
@@ -57,7 +52,6 @@ struct EditEffortView: View {
         _endTime = State(initialValue: calendar.date(from: endTimeComponents) ?? effort.date.addingTimeInterval(effort.hours * 3600))
     }
     
-    // Calculate hours from time selection
     private var hoursFromTimeSelection: Double {
         let calendar = Calendar.current
         let components = calendar.dateComponents([.minute], from: startTime, to: endTime)
@@ -65,7 +59,6 @@ struct EditEffortView: View {
         return Double(minutes) / 60.0
     }
     
-    // Determine if effort can be saved
     private var canSave: Bool {
         selectedGoalId != UUID() && (
             (useTimeSelector && endTime > startTime) ||
@@ -73,10 +66,21 @@ struct EditEffortView: View {
         )
     }
     
+    // Calculate total hours for the day excluding the current effort
+    private var totalHoursForSelectedDay: Double {
+        let existingEfforts = sprintStore.effortsForDate(effort.date).filter { $0.id != effort.id }
+        let existingHours = existingEfforts.reduce(0.0) { $0 + $1.hours }
+        let newHours = useTimeSelector ? hoursFromTimeSelection : (Double(hoursInput) ?? 0)
+        return existingHours + newHours
+    }
+    
+    private var wouldExceedDailyLimit: Bool {
+        totalHoursForSelectedDay > 24.0
+    }
+    
     var body: some View {
         NavigationStack {
             Form {
-                // Goal selection section
                 Section {
                     ForEach(sprint.goals) { goal in
                         Button {
@@ -86,14 +90,11 @@ struct EditEffortView: View {
                                 VStack(alignment: .leading) {
                                     Text(goal.title)
                                         .foregroundColor(.primary)
-                                    
                                     Text("Target: \(String(format: "%.1f", goal.targetHours)) hrs • Weight: \(Int(goal.weight * 100))%")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
-                                
                                 Spacer()
-                                
                                 if selectedGoalId == goal.id {
                                     Image(systemName: "checkmark")
                                         .foregroundColor(.blue)
@@ -105,7 +106,6 @@ struct EditEffortView: View {
                     Text("Select Goal")
                 }
                 
-                // Hours input section
                 Section {
                     Toggle("Use time selector", isOn: $useTimeSelector)
                     
@@ -131,7 +131,6 @@ struct EditEffortView: View {
                     Text("Time Spent")
                 }
                 
-                // Optional notes
                 Section {
                     TextField("Add any notes or details", text: $notes, axis: .vertical)
                         .lineLimit(3...5)
@@ -139,14 +138,20 @@ struct EditEffortView: View {
                     Text("Notes (Optional)")
                 }
                 
-                // Save and Delete buttons
                 Section {
                     Button("Save Changes") {
                         saveUpdatedEffort()
                     }
-                    .disabled(!canSave)
+                    .disabled(!canSave || wouldExceedDailyLimit)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .foregroundColor(canSave ? .blue : .gray)
+                    .foregroundColor((canSave && !wouldExceedDailyLimit) ? .blue : .gray)
+                    
+                    if wouldExceedDailyLimit {
+                        Text("Warning: Total effort for this day would exceed 24 hours (\(String(format: "%.1f", totalHoursForSelectedDay)) hrs)")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.top, 4)
+                    }
                     
                     Button("Delete Effort") {
                         showingDeleteConfirmation = true
@@ -176,25 +181,19 @@ struct EditEffortView: View {
         }
     }
     
-    // Save updated effort
     private func saveUpdatedEffort() {
-        guard canSave else { return }
+        guard canSave, !wouldExceedDailyLimit else { return }
         
-        // Calculate hours based on input method
         let hours = useTimeSelector ? hoursFromTimeSelection : (Double(hoursInput) ?? 0)
         
-        // Create updated effort with the same ID
         let updatedEffort = Effort(
             id: effort.id,
             goalId: selectedGoalId,
-            date: effort.date, // Keep the original date
+            date: effort.date,
             hours: hours
         )
         
-        // Update in sprint store
         sprintStore.updateEffort(updatedEffort)
-        
-        // Dismiss the sheet
         dismiss()
     }
 }
@@ -415,4 +414,55 @@ struct EffortEditButton: View {
                 .foregroundColor(.blue)
         }
     }
+}
+
+
+extension SprintStore {
+    static var mockForEffortEdit: SprintStore {
+        let store = SprintStore()
+
+        let goal = Goal(
+            id: UUID(),
+            title: "Study Swift",
+            targetHours: 2,
+            weight: 1
+        )
+
+        let sprint = Sprint(
+            id: UUID(),
+            name: "iOS Dev Sprint",
+            startDate: Calendar.current.date(byAdding: .day, value: -7, to: Date())!,
+            endDate: Calendar.current.date(byAdding: .day, value: 7, to: Date())!,
+            goals: [goal]
+        )
+
+        let effort = Effort(
+            id: UUID(),
+            goalId: goal.id,
+            date: Calendar.current.date(byAdding: .hour, value: -3, to: Date())!,
+            hours: 1.5
+        )
+
+        store.sprints = [sprint]
+        store.efforts = [effort]
+
+        return store
+    }
+
+    static var mockSprintForEffortEdit: Sprint {
+        mockForEffortEdit.sprints.first!
+    }
+
+    static var mockEffort: Effort {
+        mockForEffortEdit.efforts.first!
+    }
+}
+
+
+#Preview {
+    EditEffortView(
+        effort: SprintStore.mockEffort,
+        sprint: SprintStore.mockSprintForEffortEdit
+    )
+    .environmentObject(SprintStore.mockForEffortEdit)
 }

@@ -87,12 +87,20 @@ struct DashboardView: View {
     private var lifeProgressSection: some View {
         VStack(spacing: 16) {
             // Life stats view
-            let lifeStats = LifeProgressCalculator.calculateLifeStats(
-                currentAge: userSettings.currentAge,
-                targetAge: userSettings.targetAge
+            let sprintStats = SprintProgressCalculator.calculateLongestSprintStats(
+                sprintStore: sprintStore
+            ) ?? SprintStatistics(
+                daysPassed: 0,
+                daysRemaining: 0,
+                totalDays: 0,
+                weeksPassed: 0,
+                weeksRemaining: 0,
+                percentCompleted: 0,
+                startDate: Date(),
+                endDate: Date()
             )
             
-            LifeStatsView(stats: lifeStats)
+            SprintStatsView(stats: sprintStats)
                 .padding(.horizontal)
             
             // Grid preview
@@ -103,7 +111,7 @@ struct DashboardView: View {
                     
                     Spacer()
                     
-                    NavigationLink(destination: LifetimeGridView()) {
+                    NavigationLink(destination: SprintGridTimelineView()) {
                         Text("View Full Grid")
                             .font(.caption)
                             .foregroundColor(.blue)
@@ -112,7 +120,7 @@ struct DashboardView: View {
                 
                 // Create a mini grid visualization
                 let weeksPerRow = 52 // Weeks in a year
-                let totalWeeks = lifeStats.yearsRemaining * 52 + lifeStats.weeksLived
+                let totalWeeks = sprintStats.weeksRemaining + sprintStats.weeksPassed
                 let rowsToShow = min(5, totalWeeks / weeksPerRow) // Show 5 years max
                 
                 VStack(spacing: 2) {
@@ -121,7 +129,7 @@ struct DashboardView: View {
                             ForEach(0..<weeksPerRow, id: \.self) { col in
                                 let weekIndex = row * weeksPerRow + col
                                 Rectangle()
-                                    .fill(weekIndex < lifeStats.weeksLived ? Color.green.opacity(0.7) : Color.gray.opacity(0.2))
+                                    .fill(weekIndex < sprintStats.weeksPassed ? Color.green.opacity(0.7) : Color.gray.opacity(0.2))
                                     .frame(height: 6)
                                     .cornerRadius(1)
                             }
@@ -528,4 +536,19 @@ struct DashboardView: View {
     }
     
 
+}
+
+extension UserSettings {
+    static var mock: UserSettings {
+        let settings = UserSettings()
+        settings.currentAge = 25
+        settings.targetAge = 90
+        return settings
+    }
+}
+
+#Preview {
+    DashboardView()
+        .environmentObject(UserSettings.mock)
+        .environmentObject(SprintStore.mock)
 }

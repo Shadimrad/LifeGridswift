@@ -157,49 +157,15 @@ struct SprintDetailView: View {
     // Sprint grid view
     private func sprintGridView(dayData: [DayData]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Day of week headers
-            HStack {
-                ForEach(Array(zip(["S", "M", "T", "W", "T", "F", "S"].indices, ["S", "M", "T", "W", "T", "F", "S"])), id: \.0) { index, day in
-                    Text(day)
-                        .font(.caption)
-                        .frame(width: 30)
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding(.leading, 8)
+            // Extract day of week headers to a separate function
+            dayOfWeekHeaderView()
             
             // Days grid
             let weeks = groupByWeeks(dayData)
             
             ForEach(weeks.keys.sorted(), id: \.self) { weekIndex in
                 if let weekDays = weeks[weekIndex] {
-                    HStack(spacing: 4) {
-                        Text("\(weekIndex)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .frame(width: 20, alignment: .leading)
-                        
-                        // Calculate empty slots for first week
-                        if weekIndex == weeks.keys.sorted().first {
-                            let firstDay = weekDays.first?.date ?? Date()
-                            let weekday = Calendar.current.component(.weekday, from: firstDay) - 1 // 0-based
-                            
-                            ForEach(0..<weekday, id: \.self) { _ in
-                                Color.clear
-                                    .frame(width: 30, height: 30)
-                            }
-                        }
-                        
-                        // Actual day cells
-                        ForEach(weekDays) { day in
-                            dayCellView(for: day)
-                                .onTapGesture {
-                                    // Set date for effort logging
-                                    selectedDate = day.date
-                                    showingEffortSheet = true
-                                }
-                        }
-                    }
+                    weekRowView(weekIndex: weekIndex, weekDays: weekDays, isFirstWeek: weekIndex == weeks.keys.sorted().first)
                 }
             }
         }
@@ -210,12 +176,57 @@ struct SprintDetailView: View {
         )
         .padding(.horizontal)
     }
+
+    // Extract day of week header into a separate function
+    private func dayOfWeekHeaderView() -> some View {
+        HStack {
+            let dayLabels = ["S", "M", "T", "W", "T", "F", "S"]
+            ForEach(0..<dayLabels.count, id: \.self) { index in
+                Text(dayLabels[index])
+                    .font(.caption)
+                    .frame(width: 30)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.leading, 8)
+    }
+
+    // Extract week row into a separate function
+    private func weekRowView(weekIndex: Int, weekDays: [DayData], isFirstWeek: Bool) -> some View {
+        HStack(spacing: 4) {
+            Text("\(weekIndex)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .frame(width: 20, alignment: .leading)
+            
+            // Calculate empty slots for first week
+            if isFirstWeek {
+                let firstDay = weekDays.first?.date ?? Date()
+                let weekday = Calendar.current.component(.weekday, from: firstDay) - 1 // 0-based
+                
+                ForEach(0..<weekday, id: \.self) { _ in
+                    Color.clear
+                        .frame(width: 30, height: 30)
+                }
+            }
+            
+            // Actual day cells
+            ForEach(weekDays) { day in
+                dayCellView(for: day)
+                    .onTapGesture {
+                        // Set date for effort logging
+                        selectedDate = day.date
+                        showingEffortSheet = true
+                    }
+            }
+        }
+    }
     
     // Day cell view
     private func dayCellView(for day: DayData) -> some View {
         ZStack {
             Circle()
-                .fill(day.color) // Use the extension property
+                .fill(day.score == nil ? Color.gray.opacity(0.2) : day.color) // Use gray for days with no score
                 .frame(width: 30, height: 30)
             
             Text("\(Calendar.current.component(.day, from: day.date))")
@@ -345,12 +356,26 @@ struct SprintDetailView: View {
             return []
         }
         
-        let scores = sprint.dailyScores(for: efforts)
+        // Filter efforts only for this sprint
+        let sprintEfforts = efforts.filter { effort in
+            let effortDate = calendar.startOfDay(for: effort.date)
+            return effortDate >= startDate && effortDate <= calendar.startOfDay(for: sprint.endDate)
+        }
+        
+        // Get daily scores from the sprint
+        let scores = sprint.dailyScores(for: sprintEfforts)
+        
         var dayDataArray: [DayData] = []
         
         for i in 0..<daysCount {
             if let currentDate = calendar.date(byAdding: .day, value: i, to: startDate) {
-                let score = i < scores.count ? scores[i] : nil
+                // Check if there are any efforts for this day
+                let dayEfforts = sprintEfforts.filter { effort in
+                    calendar.isDate(calendar.startOfDay(for: effort.date), inSameDayAs: currentDate)
+                }
+                
+                // Only set a score if there are efforts for this day
+                let score = dayEfforts.isEmpty ? nil : (i < scores.count ? scores[i] : nil)
                 dayDataArray.append(DayData(date: currentDate, score: score))
             }
         }
